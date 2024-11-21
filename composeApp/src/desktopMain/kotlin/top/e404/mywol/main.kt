@@ -48,7 +48,6 @@ object WolDesktop {
             windowState,
             File("data"),
             File("cache"),
-            File("logs"),
         )
         startKoin {
             modules(getCommonKoinModule({ context }))
