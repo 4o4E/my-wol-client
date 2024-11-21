@@ -1,10 +1,12 @@
 package top.e404.mywol.ui.view
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
@@ -25,6 +27,10 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import org.jetbrains.compose.ui.tooling.preview.Preview
+import top.e404.mywol.appIcon
+import top.e404.mywol.getSettings
+import top.e404.mywol.vm.RemoteVm
+import top.e404.mywol.vm.WsState
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -95,11 +101,11 @@ fun Mine() {
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.Companion.CenterHorizontally
     ) {
-//        Image(
-//            painter = painterResource(id = R.drawable.ic_launcher_foreground),
-//            contentDescription = "app图标",
-//            modifier = Modifier.size(250.dp)
-//        )
+        Image(
+            painter = appIcon,
+            contentDescription = "app图标",
+            modifier = Modifier.size(250.dp)
+        )
         Column {
             val spanStyle = SpanStyle(
                 fontSize = 1.3.em,
@@ -148,6 +154,18 @@ fun Mine() {
                     .fillMaxWidth(),
                 text = AnnotatedString("导入", spanStyle),
                 onClick = { importConfirm = true },
+            )
+            HorizontalDivider()
+            ClickableText(
+                modifier = Modifier
+                    .padding(20.dp)
+                    .fillMaxWidth(),
+                text = AnnotatedString("清空服务器数据", spanStyle),
+                onClick = {
+                    getSettings("remote").remove("serverAddress")
+                    RemoteVm.closeWebsocket()
+                    RemoteVm.websocketState = WsState.RECONNECTING
+                },
             )
             // HorizontalDivider()
             // ClickableText(

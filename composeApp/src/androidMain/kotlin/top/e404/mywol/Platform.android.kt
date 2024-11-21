@@ -3,6 +3,9 @@ package top.e404.mywol
 import android.app.Service
 import android.content.Intent
 import android.os.Build
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.res.painterResource
 import androidx.core.app.NotificationCompat
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -55,25 +58,11 @@ actual fun Context.createDatabaseBuilder(): RoomDatabase.Builder<WolDatabase> {
     )
 }
 
-actual object WsService {
-    actual fun init(clientName: String, serverUrl: String, packetHandler: () -> Unit) {
-
-    }
-
-    actual fun start() {
-
-    }
-
-    actual fun stop() {
-
-    }
-}
-
 /**
  * 和远程服务器进行数据交互的服务
  */
 class WebsocketService : Service() {
-    private val log = logger(WsService::class)
+    private val log = logger(WebsocketService::class)
     private val scope = CoroutineScope(CoroutineExceptionHandler { ctx, t ->
         log.error("Unhandled exception in websocket service scope, coroutineContext: $ctx", t)
     } + SupervisorJob())
@@ -81,7 +70,7 @@ class WebsocketService : Service() {
     override fun onBind(intent: Intent) = null
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         val clientName = intent.getStringExtra("clientName")!!
-        val serverUrl = intent.getStringExtra("serverUrl")!!
+        val serverAddress = intent.getStringExtra("serverAddress")!!
         // 创建一个通知
         val notification = NotificationCompat.Builder(this, "service_channel")
             .setContentTitle("wol远程连接服务")
@@ -108,3 +97,7 @@ class WebsocketService : Service() {
         log.debug("服务已销毁")
     }
 }
+
+actual val appIcon: Painter
+    @Composable
+    get() = painterResource(id = R.drawable.icon)

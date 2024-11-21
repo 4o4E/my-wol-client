@@ -22,7 +22,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
@@ -52,11 +51,12 @@ import top.e404.mywol.ui.view.EditMachine
 import top.e404.mywol.ui.view.Local
 import top.e404.mywol.ui.view.Mine
 import top.e404.mywol.ui.view.Remote
+import top.e404.mywol.vm.UiVm
 
 @Composable
 fun App() {
     val controller = rememberNavController()
-    val snackbarHostState = remember { SnackbarHostState() }
+    val snackbarHostState = UiVm.globalSnackbarHostState
     val scope = rememberCoroutineScope()
     val colorScheme =
         if (isSystemInDarkTheme()) darkColorScheme()
@@ -101,12 +101,10 @@ fun App() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     CompositionLocalProvider(NavController provides controller) {
-                        CompositionLocalProvider(LocalSnackbarHostState provides snackbarHostState) {
-                            NavHost(navController = controller, startDestination = Router.LOCAL) {
-                                composable(Router.LOCAL) { Local() }
-                                composable(Router.REMOTE) { Remote() }
-                                composable(Router.MINE) { Mine() }
-                            }
+                        NavHost(navController = controller, startDestination = Router.LOCAL) {
+                            composable(Router.LOCAL) { Local() }
+                            composable(Router.REMOTE) { Remote() }
+                            composable(Router.MINE) { Mine() }
                         }
                     }
                 }
@@ -164,11 +162,6 @@ object Router {
      */
     const val MINE = "mine"
 }
-
-val LocalSnackbarHostState: ProvidableCompositionLocal<SnackbarHostState> =
-    staticCompositionLocalOf {
-        error("no snackbarHostState provided")
-    }
 
 @Stable
 val NavController: ProvidableCompositionLocal<NavHostController> = staticCompositionLocalOf {

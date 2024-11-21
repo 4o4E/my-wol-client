@@ -16,6 +16,7 @@ import org.koin.core.component.inject
 import top.e404.mywol.dao.Machine
 import top.e404.mywol.dao.WolDatabase
 import top.e404.mywol.model.MachineState
+import top.e404.mywol.util.debug
 import top.e404.mywol.util.logger
 import java.net.InetAddress
 
@@ -43,23 +44,22 @@ object LocalVm : ViewModel(), KoinComponent {
     var machineState = mapOf<String, MachineState>()
     private lateinit var machineStateSyncJob: Job
     fun startSync() {
+        log.debug { "startSync" }
         machineStateSyncJob = viewModelScope.launch(Dispatchers.IO) {
             while (true) {
-                val stateMap = listNormal().map {
-                    async(Dispatchers.IO) {
-                        it.id to getMachineState(it).also { state ->
-                            log.debug("机器({})状态变更: {}", it.name, state)
-                        }
-                    }
+                val list = listNormal()
+                val stateMap = list.map {
+                    async(Dispatchers.IO) { it to getMachineState(it) }
                 }.awaitAll().toMap()
                 // 变更再广播
-                val changed = stateMap.entries.filter { (id, state) ->
-                    machineState[id] != state
+                val changed = stateMap.entries.filter { (machine, state) ->
+                    machineState[machine.id] != state
                 }
                 if (changed.isNotEmpty()) {
-                    RemoteVm.onMachineStateChange(changed.associate { it.toPair() })
+                    log.debug { "sendChange" }
+                    RemoteVm.onMachineStateChange()
                 }
-                machineState = stateMap
+                machineState = stateMap.entries.associate { it.key.id to it.value }
                 delay(1000)
             }
         }

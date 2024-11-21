@@ -33,17 +33,20 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import top.e404.mywol.LocalSnackbarHostState
 import top.e404.mywol.dao.Machine
 import top.e404.mywol.model.MachineState
+import top.e404.mywol.model.WolClient
+import top.e404.mywol.model.WolMachine
 import top.e404.mywol.ui.view.EditMachine
 import top.e404.mywol.vm.LocalVm
+import top.e404.mywol.vm.RemoteVm
+import top.e404.mywol.vm.UiVm
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun MachineItem(machine: Machine) {
+fun LocalMachineItem(machine: Machine) {
     Column(
         Modifier
             .fillMaxWidth()
@@ -56,7 +59,6 @@ fun MachineItem(machine: Machine) {
         var showEdit by remember { mutableStateOf(false) }
         val modalBottomSheetState = rememberModalBottomSheetState(true) { true }
         var time by remember { mutableStateOf("") }
-        val snackbar = LocalSnackbarHostState.current
         var state by remember { mutableStateOf(MachineState.UNKNOWN) }
         Column(
             Modifier
@@ -70,9 +72,9 @@ fun MachineItem(machine: Machine) {
                     imageVector = Icons.Filled.Circle,
                     contentDescription = null,
                     tint = when (state) {
-                        top.e404.mywol.model.MachineState.ON -> Color.Green
-                        top.e404.mywol.model.MachineState.OFF -> Color.Red
-                        top.e404.mywol.model.MachineState.UNKNOWN -> Color.LightGray
+                        MachineState.ON -> Color.Green
+                        MachineState.OFF -> Color.Red
+                        MachineState.UNKNOWN -> Color.LightGray
                     }
                 )
                 Spacer(Modifier.width(10.dp))
@@ -90,7 +92,7 @@ fun MachineItem(machine: Machine) {
                 Button({
                     scope.launch(Dispatchers.IO) {
                         machine.sendMagicPacket()
-                        snackbar.showSnackbar("已发送")
+                        UiVm.globalSnackbarHostState.showSnackbar("已发送")
                     }
                 }) {
                     Text("启动")
@@ -122,6 +124,49 @@ fun MachineItem(machine: Machine) {
             while (true) {
                 state = LocalVm.machineState[machine.id] ?: MachineState.UNKNOWN
                 delay(1000)
+            }
+        }
+    }
+}
+
+@Composable
+fun RemoteMachineItem(client: WolClient, machine: WolMachine) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(5.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.secondaryContainer)
+//                .clickable(onClick = onClick)
+    ) {
+        val scope = rememberCoroutineScope()
+        Column(Modifier.fillMaxWidth().padding(15.dp)) {
+            Row {
+                Icon(
+                    modifier = Modifier.align(Alignment.CenterVertically),
+                    imageVector = Icons.Filled.Circle,
+                    contentDescription = null,
+                    tint = when (machine.state) {
+                        MachineState.ON -> Color.Green
+                        MachineState.OFF -> Color.Red
+                        MachineState.UNKNOWN -> Color.LightGray
+                    }
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(machine.name, Modifier, fontSize = 30.sp)
+            }
+            Button({
+                scope.launch(Dispatchers.IO) {
+                    UiVm.showSnackbar("已发送")
+                    val message = RemoteVm.sendWolReq(client.id, machine.id)
+                    if (message == null) {
+                        UiVm.showSnackbar("发送成功")
+                    } else {
+                        UiVm.showSnackbar("发送失败: $message")
+                    }
+                }
+            }) {
+                Text("启动")
             }
         }
     }

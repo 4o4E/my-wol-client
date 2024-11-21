@@ -1,6 +1,9 @@
 package top.e404.mywol
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.window.WindowState
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -39,7 +42,6 @@ class DesktopContext(
     val windowState: WindowState,
     val dataDir: File,
     val cacheDir: File,
-    val logsDir: File,
 ) : Context()
 
 
@@ -56,16 +58,7 @@ actual fun Context.createDatabaseBuilder(): RoomDatabase.Builder<WolDatabase> {
     )
 }
 
-actual object WsService {
-    actual fun init(clientName: String, serverUrl: String, packetHandler: () -> Unit) {
-
-    }
-
-    actual fun start() {
-
-    }
-
-    actual fun stop() {
-
-    }
-}
+actual val appIcon: Painter
+    @Composable
+    @Suppress("DEPRECATION")
+    get() = painterResource("drawable/icon.png")

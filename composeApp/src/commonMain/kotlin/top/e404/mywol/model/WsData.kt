@@ -1,5 +1,6 @@
 package top.e404.mywol.model
 
+import kotlinx.serialization.Polymorphic
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.util.UUID
@@ -16,19 +17,21 @@ interface PacketData {
     val quote: String?
 }
 
+@Polymorphic
 @Serializable
 sealed interface WsC2sData : PacketData
 
+@Polymorphic
 @Serializable
 sealed interface WsS2cData : PacketData
 
 /**
  * 上传wol列表
  */
-@SerialName("sync-machine-state")
+@SerialName("sync-c2s")
 @Serializable
-data class WsSyncMachineState(
-    val machines: Map<String, MachineState>,
+data class WsSyncC2s(
+    val machines: List<WolMachine>,
     override val quote: String? = null,
     override val id: String = UUID.randomUUID().toString(),
 ) : WsC2sData
@@ -47,27 +50,26 @@ data class WsSyncS2c(
 /**
  * 发送开机数据包 请求
  */
-@SerialName("wol-req")
+@SerialName("wol-s2c")
 @Serializable
-data class WsWolReq(
-    val clientId: String,
+data class WsWolS2c(
     val machineId: String,
     override val quote: String? = null,
     override val id: String = UUID.randomUUID().toString(),
-) : WsC2sData, WsS2cData
+) : WsS2cData
 
 /**
  * 发送开机数据包 响应
  */
-@SerialName("wol-resp")
+@SerialName("wol-c2s")
 @Serializable
-data class WsWolResp(
+data class WsWolC2s(
     val origin: String,
     val success: Boolean,
     val message: String,
     override val quote: String? = null,
     override val id: String = UUID.randomUUID().toString(),
-) : WsC2sData, WsS2cData
+) : WsC2sData
 
 /**
  * 运行了app的设备
@@ -76,8 +78,7 @@ data class WsWolResp(
 data class WolClient(
     val id: String,
     val name: String,
-    val machines: List<WolMachine>,
-    val state: ClientState
+    val machines: List<WolMachine>
 )
 
 /**
@@ -92,21 +93,6 @@ data class WolMachine(
     val broadcastIp: String,
     val state: MachineState
 )
-
-/**
- * app客户端状态
- */
-@Serializable
-enum class ClientState {
-    /**
-     * client在线
-     */
-    ONLINE,
-    /**
-     * client离线
-     */
-    OFFLINE
-}
 
 /**
  * 网络设备状态

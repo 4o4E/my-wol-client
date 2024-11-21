@@ -2,6 +2,7 @@
 
 package top.e404.mywol
 
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.room.RoomDatabase
 import com.russhwolf.settings.Settings
 import top.e404.mywol.dao.WolDatabase
@@ -31,19 +32,4 @@ interface ContextFiles {
 
 expect fun Context.createDatabaseBuilder(): RoomDatabase.Builder<WolDatabase>
 
-expect object WsService {
-    /**
-     * 初始化服务
-     */
-    fun init(clientName: String, serverUrl: String, packetHandler: () -> Unit)
-
-    /**
-     * 启动服务
-     */
-    fun start()
-
-    /**
-     * 结束服务
-     */
-    fun stop()
-}
+expect val appIcon: Painter

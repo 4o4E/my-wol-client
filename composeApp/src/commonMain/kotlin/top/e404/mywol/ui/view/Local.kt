@@ -9,7 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import top.e404.mywol.ui.components.MachineItem
+import top.e404.mywol.ui.components.LocalMachineItem
 import top.e404.mywol.vm.LocalVm
 
 @Composable
@@ -23,7 +23,7 @@ fun Local() {
             Modifier
                 .align(Alignment.CenterHorizontally)
                 .padding(10.dp)) {
-            items(list.size) { MachineItem(list[it]) }
+            items(list.size) { LocalMachineItem(list[it]) }
         }
     }
 }
