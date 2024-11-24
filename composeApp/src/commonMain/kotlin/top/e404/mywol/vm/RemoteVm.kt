@@ -55,7 +55,6 @@ object RemoteVm : ViewModel(), KoinComponent {
     private val machineDao inline get() = db.machineDao
 
     var initializing by mutableStateOf(true)
-        private set
     var websocketState by mutableStateOf(WsState.CONNECTING)
     private val id by lazy {
         remoteSettings.getStringOrNull("id")
