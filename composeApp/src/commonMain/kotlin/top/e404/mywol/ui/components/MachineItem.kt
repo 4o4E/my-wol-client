@@ -3,6 +3,7 @@ package top.e404.mywol.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,9 +15,7 @@ import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,7 +36,6 @@ import top.e404.mywol.dao.Machine
 import top.e404.mywol.model.MachineState
 import top.e404.mywol.model.WolClient
 import top.e404.mywol.model.WolMachine
-import top.e404.mywol.ui.view.EditMachine
 import top.e404.mywol.vm.LocalVm
 import top.e404.mywol.vm.RemoteVm
 import top.e404.mywol.vm.UiVm
@@ -53,11 +51,9 @@ fun LocalMachineItem(machine: Machine) {
             .padding(5.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.secondaryContainer)
-//                .clickable(onClick = onClick)
     ) {
         val scope = rememberCoroutineScope()
-        var showEdit by remember { mutableStateOf(false) }
-        val modalBottomSheetState = rememberModalBottomSheetState(true) { true }
+        var editMachine by remember { UiVm.editMachine }
         var time by remember { mutableStateOf("") }
         var state by remember { mutableStateOf(MachineState.UNKNOWN) }
         Column(
@@ -66,25 +62,16 @@ fun LocalMachineItem(machine: Machine) {
                 .padding(15.dp)
         ) {
             Row {
-                Icon(
-                    modifier = Modifier
-                        .align(Alignment.CenterVertically),
-                    imageVector = Icons.Filled.Circle,
-                    contentDescription = null,
-                    tint = when (state) {
-                        MachineState.ON -> Color.Green
-                        MachineState.OFF -> Color.Red
-                        MachineState.UNKNOWN -> Color.LightGray
-                    }
-                )
+                StateIcon(state)
                 Spacer(Modifier.width(10.dp))
-                Text(machine.name, Modifier, fontSize = 30.sp)
+                Text(machine.name, Modifier, fontSize = 20.sp)
             }
             Text("添加于$time")
+            if (UiVm.debug) Text(machine.id)
             Spacer(modifier = Modifier.height(10.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Button({
-                    showEdit = true
+                    editMachine = machine
                 }) {
                     Text("编辑")
                 }
@@ -92,7 +79,7 @@ fun LocalMachineItem(machine: Machine) {
                 Button({
                     scope.launch(Dispatchers.IO) {
                         machine.sendMagicPacket()
-                        UiVm.globalSnackbarHostState.showSnackbar("已发送")
+                        UiVm.globalSnackbarHostState.showSnackbar("已广播wol")
                     }
                 }) {
                     Text("启动")
@@ -100,19 +87,6 @@ fun LocalMachineItem(machine: Machine) {
             }
         }
 
-        if (showEdit) {
-            ModalBottomSheet(
-                sheetState = modalBottomSheetState,
-                modifier = Modifier.fillMaxWidth(),
-                onDismissRequest = {
-                    scope.launch {
-                        showEdit = false
-                    }
-                }
-            ) {
-                EditMachine(machine) { showEdit = false }
-            }
-        }
         LaunchedEffect(Unit) {
             while (true) {
                 val (formatted, delay) = formatTime(machine.time)
@@ -137,30 +111,21 @@ fun RemoteMachineItem(client: WolClient, machine: WolMachine) {
             .padding(5.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.secondaryContainer)
-//                .clickable(onClick = onClick)
     ) {
-        val scope = rememberCoroutineScope()
         Column(Modifier.fillMaxWidth().padding(15.dp)) {
             Row {
-                Icon(
-                    modifier = Modifier.align(Alignment.CenterVertically),
-                    imageVector = Icons.Filled.Circle,
-                    contentDescription = null,
-                    tint = when (machine.state) {
-                        MachineState.ON -> Color.Green
-                        MachineState.OFF -> Color.Red
-                        MachineState.UNKNOWN -> Color.LightGray
-                    }
-                )
+                StateIcon(machine.state)
                 Spacer(Modifier.width(10.dp))
-                Text(machine.name, Modifier, fontSize = 30.sp)
+                Text(machine.name, fontSize = 20.sp)
             }
+            if (UiVm.debug) Text(machine.id)
+            Spacer(modifier = Modifier.height(10.dp))
             Button({
-                scope.launch(Dispatchers.IO) {
-                    UiVm.showSnackbar("已发送")
+                RemoteVm.connectScope.launch {
+                    UiVm.showSnackbar("广播中...")
                     val message = RemoteVm.sendWolReq(client.id, machine.id)
                     if (message == null) {
-                        UiVm.showSnackbar("发送成功")
+                        UiVm.showSnackbar("已广播wol")
                     } else {
                         UiVm.showSnackbar("发送失败: $message")
                     }
@@ -192,4 +157,19 @@ internal fun formatTime(time: Long): Pair<String, Long> {
             .toLocalDateTime()
             .let(displayFormatter::format) to 24 * 60 * 60 * 1000
     }
+}
+
+@Composable
+internal fun RowScope.StateIcon(state: MachineState) {
+    Icon(
+        modifier = Modifier
+            .align(Alignment.CenterVertically),
+        imageVector = Icons.Filled.Circle,
+        contentDescription = null,
+        tint = when (state) {
+            MachineState.ON -> Color.Green
+            MachineState.OFF -> Color.Red
+            MachineState.UNKNOWN -> Color.LightGray
+        }
+    )
 }

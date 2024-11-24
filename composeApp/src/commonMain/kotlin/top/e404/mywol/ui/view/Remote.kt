@@ -1,5 +1,6 @@
 package top.e404.mywol.ui.view
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -7,10 +8,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,18 +23,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.russhwolf.settings.set
-import top.e404.mywol.getSettings
 import top.e404.mywol.ui.components.ClientItem
 import top.e404.mywol.util.valueWithError
 import top.e404.mywol.vm.RemoteVm
+import top.e404.mywol.vm.SettingsVm
 import top.e404.mywol.vm.WsState
 
 @Composable
 fun Remote() {
-    val settings = remember { getSettings("remote") }
+    val settings = SettingsVm.remote
     var clientName by remember { mutableStateOf(settings.getString("clientName", "")) }
     var serverAddress by remember { mutableStateOf(settings.getString("serverAddress", "")) }
     var serverSecret by remember { mutableStateOf(settings.getString("serverSecret", "")) }
@@ -55,13 +58,15 @@ fun Remote() {
         }
         return
     }
-    RemoteView()
+    RemoteClientsView()
 }
 
-private val URL_REGEX = Regex("(?i)" +
-        "(?<host>localhost|(\\d{1,3}.){3}\\d{1,3}|[\\da-z]{2,}(\\.[\\da-z]{2,}){1,2})" +
-        "(?<port>:\\d{1,5})?" +
-        "(?<path>/.*)?")
+private val URL_REGEX = Regex(
+    "(?i)" +
+            "(?<host>localhost|(\\d{1,3}.){3}\\d{1,3}|[\\da-z]{2,}(\\.[\\da-z]{2,}){1,2})" +
+            "(?<port>:\\d{1,5})?" +
+            "(?<path>/.*)?"
+)
 
 @Composable
 private fun InputUrl(
@@ -132,8 +137,11 @@ private fun InputUrl(
     }
 }
 
+/**
+ * 远程客户端列表
+ */
 @Composable
-private fun RemoteView() {
+private fun RemoteClientsView() {
     LaunchedEffect(Unit) {
         RemoteVm.initialize()
     }
@@ -143,14 +151,20 @@ private fun RemoteView() {
     }
     val clients by remember { RemoteVm.clients }
     Column(
-        Modifier.fillMaxSize()
+        Modifier.fillMaxSize().padding(10.dp)
     ) {
-        Text("服务器已连接${RemoteVm.serverAddress}")
-        Spacer(Modifier.height(10.dp))
-        LazyColumn {
-            items(clients.size) {
-                ClientItem(clients[it])
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(5.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.secondaryContainer)
+        ) {
+            Column(Modifier.fillMaxWidth().padding(15.dp)) {
+                Text("服务器已连接${RemoteVm.serverAddress}")
             }
         }
+        Spacer(Modifier.height(10.dp))
+        for (client in clients) ClientItem(client)
     }
 }

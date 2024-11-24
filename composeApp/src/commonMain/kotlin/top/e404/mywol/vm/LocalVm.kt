@@ -57,7 +57,7 @@ object LocalVm : ViewModel(), KoinComponent {
                 }
                 if (changed.isNotEmpty()) {
                     log.debug { "sendChange" }
-                    RemoteVm.onMachineStateChange()
+                    RemoteVm.syncMachines()
                 }
                 machineState = stateMap.entries.associate { it.key.id to it.value }
                 delay(1000)

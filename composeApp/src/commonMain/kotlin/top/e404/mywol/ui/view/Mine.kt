@@ -1,13 +1,14 @@
 package top.e404.mywol.ui.view
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.text.ClickableText
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -19,35 +20,33 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
+import com.russhwolf.settings.set
 import org.jetbrains.compose.ui.tooling.preview.Preview
+import top.e404.mywol.NavController
+import top.e404.mywol.Router
 import top.e404.mywol.appIcon
-import top.e404.mywol.getSettings
 import top.e404.mywol.vm.RemoteVm
+import top.e404.mywol.vm.SettingsVm
+import top.e404.mywol.vm.UiVm
 import top.e404.mywol.vm.WsState
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 
 @Preview
 @Composable
 fun Mine() {
+    val nav = NavController.current
     var showAbout by remember { mutableStateOf(false) }
+    fun getModifier() = Modifier.padding(10.dp).fillMaxWidth()
     if (showAbout) AlertDialog(onDismissRequest = {
         showAbout = false
     }, text = {
         Text(text = "made by 404E and ❤")
     }, confirmButton = {
-        ClickableText(
-            text = AnnotatedString("确定"),
-            onClick = { showAbout = false },
-            style = TextStyle(color = MaterialTheme.colorScheme.onPrimaryContainer)
-        )
+        Text("确定", getModifier().clickable { showAbout = false })
     })
 
     var exportFile by remember { mutableStateOf<String?>(null) }
@@ -74,19 +73,19 @@ fun Mine() {
     }, text = {
         Text(text = "导入数据后会覆盖本地现有数据, 确定继续?")
     }, confirmButton = {
-        ClickableText(
-            text = AnnotatedString("确定"),
-            onClick = {
+        Text(
+            "确定",
+            getModifier().clickable {
                 importConfirm = false
-                // todo 跳转主页
+                nav.navigate(Router.LOCAL.routerName)
             },
-            style = TextStyle(color = MaterialTheme.colorScheme.onPrimaryContainer)
         )
     }, dismissButton = {
-        ClickableText(
-            text = AnnotatedString("取消"),
-            onClick = { importConfirm = false },
-            style = TextStyle(color = MaterialTheme.colorScheme.onPrimaryContainer)
+        Text(
+            "取消",
+            getModifier().clickable {
+                importConfirm = false
+            },
         )
     })
 
@@ -104,78 +103,52 @@ fun Mine() {
         Image(
             painter = appIcon,
             contentDescription = "app图标",
-            modifier = Modifier.size(250.dp)
+            modifier = Modifier
+                .size(150.dp)
+                .clip(RoundedCornerShape(50.dp))
         )
-        Column {
-            val spanStyle = SpanStyle(
-                fontSize = 1.3.em,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-            ClickableText(
-                modifier = Modifier
-                    .padding(20.dp)
-                    .fillMaxWidth(),
-                text = AnnotatedString("关于", spanStyle),
-                onClick = { showAbout = true },
-            )
-            HorizontalDivider()
-            ClickableText(
-                modifier = Modifier
-                    .padding(20.dp)
-                    .fillMaxWidth(),
-                text = AnnotatedString("导出", spanStyle),
-                onClick = {
-                    val now = LocalDateTime.now().format(formatter)
-//                    val fileName = "keepaccounts_export_$now.json"
-//                    top.e404.keepaccounts.App.Companion.launch(Dispatchers.IO) {
-//                        val export = top.e404.keepaccounts.data.entity.Export(
-//                            top.e404.keepaccounts.data.dao.BalanceRecordDao.list(),
-//                            top.e404.keepaccounts.data.dao.TagDao.list(),
-//                            top.e404.keepaccounts.data.dao.RecordTagDao.list(),
-//                        )
-//                        android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
-//                            .resolve(fileName)
-//                            .writeText(
-//                                Json.encodeToString(
-//                                    top.e404.keepaccounts.data.entity.Export(),
-//                                    export
-//                                )
-//                            )
-//                        withContext(Dispatchers.Main) {
-//                            exportFile = fileName
-//                        }
-//                    }
+        Column(Modifier.padding(top = 30.dp)) {
+            Text(
+                "关于",
+                getModifier().clickable {
+                    showAbout = true
                 },
             )
             HorizontalDivider()
-            ClickableText(
-                modifier = Modifier
-                    .padding(20.dp)
-                    .fillMaxWidth(),
-                text = AnnotatedString("导入", spanStyle),
-                onClick = { importConfirm = true },
+            Text(
+                "导出",
+                getModifier().clickable {
+                    // todo 导出
+                },
             )
             HorizontalDivider()
-            ClickableText(
-                modifier = Modifier
-                    .padding(20.dp)
-                    .fillMaxWidth(),
-                text = AnnotatedString("清空服务器数据", spanStyle),
-                onClick = {
-                    getSettings("remote").remove("serverAddress")
+            Text(
+                "导入",
+                getModifier().clickable {
+                    // todo 导入
+//                    importConfirm = true
+                },
+            )
+            HorizontalDivider()
+            Text(
+                "重置服务器地址",
+                getModifier().clickable {
+                    SettingsVm.remote.remove("serverAddress")
                     RemoteVm.closeWebsocket()
                     RemoteVm.websocketState = WsState.RECONNECTING
+                    UiVm.showSnackbar("重置完成")
                 },
             )
-            // HorizontalDivider()
-            // ClickableText(
-            //     modifier = Modifier.padding(10.dp),
-            //     text = AnnotatedString("设置", spanStyle),
-            //     onClick = { controller.navigate(Router.Config) },
-            // )
-            // HorizontalDivider()
+            HorizontalDivider()
+            Text(
+                "切换debug",
+                getModifier().clickable {
+                    val current = !UiVm.isDebug.value
+                    UiVm.isDebug.value = current
+                    SettingsVm.local["isDebug"] = current
+                    UiVm.showSnackbar("已${if (current) "开启" else "关闭"}debug模式")
+                },
+            )
         }
     }
 }
-
-private val formatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm_ss")

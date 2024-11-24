@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
@@ -31,13 +32,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import top.e404.mywol.dao.Machine
 import top.e404.mywol.util.valueWithError
 import top.e404.mywol.vm.LocalVm
+import top.e404.mywol.vm.RemoteVm
+import top.e404.mywol.vm.UiVm
 import java.util.UUID
 
 private val IP_REGEX = Regex(
@@ -55,32 +57,24 @@ private val IP_REGEX = Regex(
 private val MAC_REGEX = Regex("(?i)([\\da-z]{2}:){5}([\\da-z]{2})")
 
 @Composable
-fun EditMachine(
-    machine: Machine? = null,
-    done: CoroutineScope.() -> Unit
-) {
-    var name by remember {
-        mutableStateOf(
-            TextFieldValue(
-                machine?.name ?: UUID.randomUUID().toString().substring(0, 4)
-            )
-        )
-    }
+fun EditMachine(machine: Machine? = null) {
+    var name by remember { mutableStateOf(TextFieldValue(machine?.name ?: "")) }
     var nameError by remember { mutableStateOf<String?>(null) }
-    var deviceIp by remember { mutableStateOf(TextFieldValue(machine?.deviceIp ?: "1.1.1.1")) }
+    var deviceIp by remember { mutableStateOf(TextFieldValue(machine?.deviceIp ?: "")) }
     var deviceIpError by remember { mutableStateOf<String?>(null) }
-    var broadcastIp by remember { mutableStateOf(TextFieldValue(machine?.deviceIp ?: "1.1.1.1")) }
+    var broadcastIp by remember { mutableStateOf(TextFieldValue(machine?.deviceIp ?: "")) }
     var broadcastIpError by remember { mutableStateOf<String?>(null) }
-    var mac by remember { mutableStateOf(TextFieldValue(machine?.mac ?: "aa:aa:aa:aa:aa:aa")) }
-    var macLast by remember { mutableStateOf(machine?.mac ?: "aa:aa:aa:aa:aa:aa") }
+    var mac by remember { mutableStateOf(TextFieldValue(machine?.mac ?: "")) }
+    var macLast by remember { mutableStateOf(machine?.mac ?: "") }
     var macError by remember { mutableStateOf<String?>(null) }
 
     val isAdd = machine == null
+    var editMachine by remember { UiVm.editMachine }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(30.dp, 30.dp)
+            .padding(10.dp)
             .imePadding(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -128,17 +122,18 @@ fun EditMachine(
                 else LocalVm.update(new)
                 withContext(Dispatchers.Main) {
                     keyboard?.hide()
-                    done()
+                    editMachine = null
+                    UiVm.showSnackbar("已${if (isAdd) "添加" else "保存"}")
                 }
             }
         }
 
         Text(
             text = if (isAdd) "添加机器" else "修改机器",
-            modifier = Modifier.fillMaxWidth(),
-            fontSize = 30.sp
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+            fontSize = 25.sp
         )
-        Spacer(modifier = Modifier.height(30.dp))
+        Spacer(Modifier.height(20.dp))
         OutlinedTextField(
             label = {
                 Text(text = valueWithError("名字", nameError))
@@ -152,7 +147,7 @@ fun EditMachine(
                 name = it
             }
         )
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(Modifier.height(10.dp))
         OutlinedTextField(
             label = { Text(text = valueWithError("设备ip地址", deviceIpError)) },
             placeholder = { Text("xxx.xxx.xxx.xxx") },
@@ -168,7 +163,7 @@ fun EditMachine(
                 deviceIpError = if (it.text.matches(IP_REGEX)) null else "无效ip"
             }
         )
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(Modifier.height(10.dp))
         OutlinedTextField(
             label = { Text(text = valueWithError("广播ip地址", broadcastIpError)) },
             placeholder = { Text("xxx.xxx.xxx.xxx") },
@@ -186,13 +181,14 @@ fun EditMachine(
                     else "无效ip"
             }
         )
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(Modifier.height(10.dp))
         OutlinedTextField(
             label = { Text(text = valueWithError("设备mac地址", macError)) },
             modifier = Modifier,
             value = mac,
             maxLines = 1,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { onDone() }),
             isError = macError != null,
             onValueChange = {
                 mac = autoCompleteMac(it, macLast)
@@ -200,11 +196,11 @@ fun EditMachine(
                 macLast = mac.text
             }
         )
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(Modifier.height(20.dp))
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
+            Modifier.fillMaxWidth(),
+            Arrangement.Center,
+            Alignment.CenterVertically
         ) {
             Button(onClick = onDone) { Text(text = if (isAdd) "新增" else "保存") }
             if (!isAdd) {
@@ -212,6 +208,8 @@ fun EditMachine(
                 Button({
                     scope.launch(Dispatchers.IO) {
                         LocalVm.remove(machine!!.id)
+                        RemoteVm.syncMachines()
+                        editMachine = null
                     }
                 }) { Text("删除") }
             }

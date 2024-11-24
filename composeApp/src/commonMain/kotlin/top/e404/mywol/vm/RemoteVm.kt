@@ -4,7 +4,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.russhwolf.settings.set
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
@@ -25,7 +24,6 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -34,7 +32,6 @@ import kotlinx.serialization.json.Json
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import top.e404.mywol.dao.WolDatabase
-import top.e404.mywol.getSettings
 import top.e404.mywol.model.MachineState
 import top.e404.mywol.model.WolClient
 import top.e404.mywol.model.WolMachine
@@ -53,7 +50,7 @@ import kotlin.coroutines.CoroutineContext
 
 object RemoteVm : ViewModel(), KoinComponent {
     private val log = logger(RemoteVm::class)
-    private val settings = getSettings("remote")
+    private val remoteSettings by lazy { SettingsVm.remote }
     private val db: WolDatabase by inject()
     private val machineDao inline get() = db.machineDao
 
@@ -61,9 +58,9 @@ object RemoteVm : ViewModel(), KoinComponent {
         private set
     var websocketState by mutableStateOf(WsState.CONNECTING)
     private val id by lazy {
-        settings.getStringOrNull("id")
+        remoteSettings.getStringOrNull("id")
             ?: UUID.randomUUID().toString()
-                .also { settings["id"] = it }
+                .also { remoteSettings["id"] = it }
     }
     val clients = mutableStateOf(listOf<WolClient>())
 
@@ -91,7 +88,7 @@ object RemoteVm : ViewModel(), KoinComponent {
     var closeWebsocket: () -> Unit = {}
         private set
 
-    private val connectScope = CoroutineScope(SupervisorJob() + CoroutineExceptionHandler { _, t ->
+    val connectScope = CoroutineScope(SupervisorJob() + CoroutineExceptionHandler { _, t ->
         log.warn(t) { "uncaught exception in connectScope: " }
     })
 
@@ -101,12 +98,10 @@ object RemoteVm : ViewModel(), KoinComponent {
 
     private val wsContext = (SupervisorJob() + CoroutineExceptionHandler { ctx, t ->
         log.debug { "websocketState: $websocketState" }
-        if (websocketState != WsState.OPEN) {
-            websocketScope.launch(Dispatchers.IO) {
-                UiVm.showSnackbar("websocket连接异常, 将在3秒后重连")
-                delay(3000)
-                connectWebsocket()
-            }
+        websocketScope.launch(Dispatchers.IO) {
+            UiVm.showSnackbar("websocket连接异常, 将在3秒后重连")
+            delay(3000)
+            connectWebsocket()
         }
         log.warn("uncaught exception in websocket: ", t)
     }).also { setCtx(it) }
@@ -122,24 +117,24 @@ object RemoteVm : ViewModel(), KoinComponent {
     fun initialize() {
         log.debug { "initialize: $initializing" }
         if (!initializing) return
-        val existsId = settings.getStringOrNull("id")
+        val existsId = remoteSettings.getStringOrNull("id")
         val id = existsId ?: UUID.randomUUID().toString()
         if (existsId == null) {
-            settings["id"] = id
+            remoteSettings["id"] = id
         }
-        clientName = settings.getString("clientName", "")
-        serverAddress = settings.getString("serverAddress", "")
-        serverSecret = settings.getString("serverSecret", "")
+        clientName = remoteSettings.getString("clientName", "")
+        serverAddress = remoteSettings.getString("serverAddress", "")
+        serverSecret = remoteSettings.getString("serverSecret", "")
         websocketScope.launch {
             connectWebsocket()
         }
     }
 
-    private suspend fun syncMachines() {
+    suspend fun syncMachines() {
         val list = withContext(Dispatchers.IO) { LocalVm.listNormal() }
         sendPacket(WsSyncC2s(list.map { machine ->
             WolMachine(
-                id,
+                machine.id,
                 machine.name,
                 machine.mac,
                 machine.deviceIp,
@@ -195,23 +190,18 @@ object RemoteVm : ViewModel(), KoinComponent {
         }
     }
 
-    fun onMachineStateChange() {
-        viewModelScope.launch {
-            syncMachines()
-        }
-    }
-
     private suspend fun receivePacket(s2cData: WsS2cData) {
         when (s2cData) {
             is WsWolS2c -> {
                 val machine = machineDao.getById(s2cData.machineId)
                 if (machine == null) {
-                    val packet = WsWolC2s(s2cData.id, false, "没有该机器")
+                    val packet = WsWolC2s(false, "没有该机器", s2cData.id)
                     sendPacket(packet)
                     return
                 }
+                UiVm.showSnackbar("正在唤醒${machine.name}")
                 sendMagicPacket(machine.deviceIp, machine.mac)
-                val packet = WsWolC2s(s2cData.id, true, "", s2cData.id)
+                val packet = WsWolC2s(true, "", s2cData.id)
                 sendPacket(packet)
             }
 
@@ -228,17 +218,17 @@ object RemoteVm : ViewModel(), KoinComponent {
     }
 
     suspend fun sendWolReq(clientId: String, machineId: String): String? {
+        log.debug { "发送请求" }
         val response = try {
-            connectScope.async {
-                httpClient.post("http://$serverAddress/wol") {
-                    contentType(ContentType.Application.Json)
-                    setBody(WolReq(clientId, machineId))
-                }
-            }.await()
+            httpClient.post("http://$serverAddress/wol") {
+                contentType(ContentType.Application.Json)
+                setBody(WolReq(clientId, machineId))
+            }
         } catch (e: Exception) {
             log.warn("发送wol请求失败: ", e)
             return e.message
         }
+        log.debug { "接收响应" }
         return if (response.status == HttpStatusCode.OK) null else "${response.status.value}: ${response.bodyAsText()}"
     }
 }
