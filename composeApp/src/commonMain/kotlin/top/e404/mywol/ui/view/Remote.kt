@@ -143,10 +143,10 @@ private fun InputUrl(
 @Composable
 private fun RemoteClientsView() {
     LaunchedEffect(Unit) {
-        RemoteVm.initialize()
+        RemoteVm.startWebsocket()
     }
-    if (RemoteVm.websocketState != WsState.OPEN) {
-        Text(RemoteVm.websocketState.display)
+    if (RemoteVm.state != WsState.OPEN) {
+        Text(RemoteVm.state.display)
         return
     }
     val clients by remember { RemoteVm.clients }

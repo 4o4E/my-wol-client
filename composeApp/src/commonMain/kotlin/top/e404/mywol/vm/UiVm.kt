@@ -9,7 +9,7 @@ import kotlinx.coroutines.launch
 import top.e404.mywol.dao.Machine
 
 object UiVm {
-    private val ioScope = CoroutineScope(Dispatchers.IO)
+    val ioScope = CoroutineScope(Dispatchers.IO)
 
     /**
      * 展示一个 Snackbar 并且不阻塞

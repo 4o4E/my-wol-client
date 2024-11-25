@@ -21,7 +21,7 @@ import top.e404.mywol.util.logger
 import java.net.InetAddress
 
 object LocalVm : ViewModel(), KoinComponent {
-    private val log = logger(LocalVm::class)
+    private val log = logger()
     private val db: WolDatabase by inject()
     private val machineDao inline get() = db.machineDao
 

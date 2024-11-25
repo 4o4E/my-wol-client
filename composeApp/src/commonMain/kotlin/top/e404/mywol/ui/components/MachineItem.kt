@@ -121,7 +121,7 @@ fun RemoteMachineItem(client: WolClient, machine: WolMachine) {
             if (UiVm.debug) Text(machine.id)
             Spacer(modifier = Modifier.height(10.dp))
             Button({
-                RemoteVm.connectScope.launch {
+                UiVm.ioScope.launch {
                     UiVm.showSnackbar("广播中...")
                     val message = RemoteVm.sendWolReq(client.id, machine.id)
                     if (message == null) {

@@ -12,8 +12,8 @@ import com.russhwolf.settings.Settings
 import top.e404.mywol.dao.WolDatabase
 import java.io.File
 
-class JVMPlatform : Platform {
-    override val name: String = "Java ${System.getProperty("java.version")}"
+class DesktopPlatform : Platform {
+    override val name: String = "Desktop"
 
     override fun save(content: String) {
         TODO("Not yet implemented")
@@ -24,9 +24,9 @@ class JVMPlatform : Platform {
     }
 }
 
-actual fun getPlatform(): Platform = JVMPlatform()
+actual fun getPlatform(): Platform = DesktopPlatform()
 
-lateinit var factory: Settings.Factory
+private lateinit var factory: Settings.Factory
 
 actual fun getSettings(name: String): Settings {
     if (!::factory.isInitialized) {

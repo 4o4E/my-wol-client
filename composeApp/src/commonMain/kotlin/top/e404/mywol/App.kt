@@ -47,6 +47,7 @@ import top.e404.mywol.ui.view.Local
 import top.e404.mywol.ui.view.Mine
 import top.e404.mywol.ui.view.Remote
 import top.e404.mywol.util.logger
+import top.e404.mywol.vm.RemoteVm
 import top.e404.mywol.vm.SettingsVm
 import top.e404.mywol.vm.UiVm
 
@@ -60,6 +61,11 @@ fun App() {
     var isDebug by remember { UiVm.isDebug }
     LaunchedEffect(Unit) {
         isDebug = SettingsVm.local.getBoolean("isDebug", false)
+    }
+    LaunchedEffect(Unit) {
+        if (SettingsVm.remote.getString("serverAddress", "").isNotEmpty()) {
+            RemoteVm.startWebsocket()
+        }
     }
     MaterialTheme(colorScheme = colorScheme) {
         val bottomBarHeight = 70.dp

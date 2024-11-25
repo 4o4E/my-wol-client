@@ -134,8 +134,8 @@ fun Mine() {
                 "重置服务器地址",
                 getModifier().clickable {
                     SettingsVm.remote.remove("serverAddress")
-                    RemoteVm.closeWebsocket()
-                    RemoteVm.websocketState = WsState.RECONNECTING
+                    RemoteVm.close()
+                    RemoteVm.state = WsState.RECONNECTING
                     RemoteVm.initializing = true
                     UiVm.showSnackbar("重置完成")
                 },

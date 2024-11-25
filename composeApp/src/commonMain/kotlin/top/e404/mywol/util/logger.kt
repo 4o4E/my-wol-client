@@ -1,3 +1,5 @@
+@file:Suppress("UNUSED")
+
 package top.e404.mywol.util
 
 import org.slf4j.Logger
@@ -9,6 +11,8 @@ import kotlin.reflect.KClass
 fun logger(name: String): Logger {
     return LoggerFactory.getILoggerFactory().getLogger(name)
 }
+
+inline fun <reified T : Any> T.logger() = logger(T::class)
 
 fun logger(clazz: KClass<out Any>): Logger {
     return LoggerFactory.getILoggerFactory().getLogger(clazz.qualifiedName!!)
