@@ -5,11 +5,14 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
+import android.os.Build
 import androidx.core.app.NotificationCompat
 import top.e404.mywol.MainActivity
 import top.e404.mywol.R
+import top.e404.mywol.util.afterVer
 import top.e404.mywol.util.debug
 import top.e404.mywol.util.logger
+import top.e404.mywol.util.ver
 
 actual class WebsocketService : Service() {
     actual companion object {
@@ -21,13 +24,15 @@ actual class WebsocketService : Service() {
         private val ctx get() = MainActivity.appContext
 
         actual fun start(address: String, id: String, name: String, secret: String?): Boolean {
-            val exists =
-                ctx.startForegroundService(Intent(ctx, WebsocketService::class.java).apply {
-                    putExtra("address", address)
-                    putExtra("id", id)
-                    putExtra("name", name)
-                    putExtra("secret", secret)
-                })
+            val intent = Intent(ctx, WebsocketService::class.java).apply {
+                putExtra("address", address)
+                putExtra("id", id)
+                putExtra("name", name)
+                putExtra("secret", secret)
+            }
+            val exists = ver(Build.VERSION_CODES.O,
+                { ctx.startForegroundService(intent) },
+                { ctx.startService(intent) })
             return exists == null
         }
 
@@ -37,13 +42,14 @@ actual class WebsocketService : Service() {
 
         private val channelId by lazy {
             val id = "SERVICE_CHANNEL"
-            val channel = NotificationChannel(
-                id,
-                "Service Channel",
-                NotificationManager.IMPORTANCE_LOW
-            )
-            ctx.getSystemService(NotificationManager::class.java)
-                ?.createNotificationChannel(channel)
+            afterVer(Build.VERSION_CODES.O) {
+                val channel = NotificationChannel(
+                    id,
+                    "服务消息通知",
+                    NotificationManager.IMPORTANCE_LOW
+                )
+                ctx.getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
+            }
             id
         }
     }
@@ -72,6 +78,7 @@ actual class WebsocketService : Service() {
         notification = NotificationCompat.Builder(ctx, channelId)
             .setContentTitle("wol远程连接服务")
             .setContentText("服务正在运行...")
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .setSmallIcon(R.drawable.icon)
             .build()
         startForeground(1, notification)
