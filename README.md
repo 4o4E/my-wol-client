@@ -1,11 +1,9 @@
-This is a Kotlin Multiplatform project targeting Android, Desktop.
+# my-wol-client
 
-* `/composeApp` is for code that will be shared across your Compose Multiplatform applications.
-  It contains several subfolders:
-  - `commonMain` is for code that’s common for all targets.
-  - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
-    For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
-    `iosMain` would be the right folder for such calls.
+简单的 walk-on-lan 客户端
 
+## 特性
 
-Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)…
+- [x] 支持直接唤醒局域网内的设备
+- [x] 支持通过[服务器](https://github.com/4o4E/my-wol-backend)唤醒远程设备
+- [ ] 支持通过ssh链接至设备并发送指令
