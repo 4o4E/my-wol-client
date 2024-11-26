@@ -17,7 +17,7 @@
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:usesCleartextTraffic="true">
         <activity
-            android:name=".MainActivity"
+            android:name=".AndroidMain"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|mnc|colorMode|density|fontScale|fontWeightAdjustment|keyboard|layoutDirection|locale|mcc|navigation|smallestScreenSize|touchscreen|uiMode"
             android:exported="true">
             <intent-filter>
@@ -28,7 +28,7 @@
         </activity>
 
         <service
-            android:name="top.e404.mywol.platform.WebsocketService"
+            android:name=".platform.WebsocketService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="remoteMessaging"/>

@@ -7,7 +7,7 @@ import android.app.Service
 import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
-import top.e404.mywol.MainActivity
+import top.e404.mywol.AndroidMain
 import top.e404.mywol.R
 import top.e404.mywol.util.afterVer
 import top.e404.mywol.util.debug
@@ -21,7 +21,7 @@ actual class WebsocketService : Service() {
         @Volatile
         actual var instance: WebsocketService? = null
 
-        private val ctx get() = MainActivity.appContext
+        private val ctx get() = AndroidMain.appContext
 
         actual fun start(address: String, id: String, name: String, secret: String?): Boolean {
             val intent = Intent(ctx, WebsocketService::class.java).apply {

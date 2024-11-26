@@ -118,7 +118,7 @@ dependencies {
 
 compose.desktop {
     application {
-        mainClass = "top.e404.mywol.MainKt"
+        mainClass = "top.e404.mywol.DesktopMain"
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)

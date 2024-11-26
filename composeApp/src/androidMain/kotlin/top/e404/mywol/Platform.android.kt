@@ -27,7 +27,7 @@ private lateinit var factory: Settings.Factory
 
 actual fun getSettings(name: String): Settings {
     if (!::factory.isInitialized) {
-        factory = SharedPreferencesSettings.Factory(MainActivity.appContext)
+        factory = SharedPreferencesSettings.Factory(AndroidMain.appContext)
     }
     return factory.create(name)
 }

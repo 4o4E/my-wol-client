@@ -1,7 +1,5 @@
 package top.e404.mywol
 
-import androidx.compose.desktop.ui.tooling.preview.Preview
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
@@ -17,9 +15,8 @@ import top.e404.mywol.util.getCommonKoinModule
 import top.e404.mywol.util.logger
 import java.io.File
 
-private val logger by lazy { logger("Wol") }
-
-object WolDesktop {
+object DesktopMain {
+    private val log = logger()
     private fun calculateWindowSize(
         desiredWidth: Dp,
         desiredHeight: Dp,
@@ -38,7 +35,7 @@ object WolDesktop {
             size = kotlin.runCatching {
                 calculateWindowSize(defaultSize.width, defaultSize.height)
             }.onFailure {
-                logger.error(it) { "Failed to calculate window size" }
+                log.error(it) { "Failed to calculate window size" }
             }.getOrElse {
                 defaultSize
             },
@@ -64,7 +61,3 @@ object WolDesktop {
         }
     }
 }
-
-@Preview
-@Composable
-fun DesktopPreview() = App()

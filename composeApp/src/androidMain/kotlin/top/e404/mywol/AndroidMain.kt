@@ -16,7 +16,7 @@ import top.e404.mywol.util.afterVer
 import top.e404.mywol.util.getCommonKoinModule
 import top.e404.mywol.vm.LocalVm
 
-class MainActivity : ComponentActivity() {
+class AndroidMain : ComponentActivity() {
     companion object {
         lateinit var appContext: Context
     }
@@ -35,8 +35,8 @@ class MainActivity : ComponentActivity() {
         }
 
         startKoin {
-            androidContext(this@MainActivity)
-            modules(getCommonKoinModule({ this@MainActivity }))
+            androidContext(this@AndroidMain)
+            modules(getCommonKoinModule({ this@AndroidMain }))
         }
 
         LocalVm.startSync()
