@@ -14,16 +14,15 @@ import kotlinx.coroutines.withContext
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import top.e404.mywol.dao.Machine
-import top.e404.mywol.dao.WolDatabase
 import top.e404.mywol.model.MachineState
+import top.e404.mywol.repository.MachineRepository
 import top.e404.mywol.util.debug
 import top.e404.mywol.util.logger
 import java.net.InetAddress
 
 object LocalVm : ViewModel(), KoinComponent {
     private val log = logger()
-    private val db: WolDatabase by inject()
-    private val machineDao inline get() = db.machineDao
+    private val machineRepository: MachineRepository by inject()
 
     val itemList = list().stateIn(
         viewModelScope,
@@ -31,15 +30,17 @@ object LocalVm : ViewModel(), KoinComponent {
         emptyList()
     )
 
-    fun getById(id: String) = machineDao.getById(id)
-    fun list() = machineDao.list()
-    fun listNormal() = machineDao.listNormal()
+    suspend fun getById(id: String) = withContext(Dispatchers.IO) { machineRepository.getById(id) }
+    fun list() = machineRepository.list()
+    suspend fun listNormal() = withContext(Dispatchers.IO) { machineRepository.listNormal() }
+    suspend fun save(machine: Machine) = withContext(Dispatchers.IO) {
+        machineRepository.save(machine)
+    }
 
-    fun save(machine: Machine) = machineDao.insert(machine)
-
-    fun remove(id: String) = machineDao.delete(id)
-
-    fun update(machine: Machine) = machineDao.update(machine)
+    suspend fun remove(id: String) = withContext(Dispatchers.IO) { machineRepository.remove(id) }
+    suspend fun update(machine: Machine) = withContext(Dispatchers.IO) {
+        machineRepository.update(machine)
+    }
 
     var machineState = mapOf<String, MachineState>()
     private lateinit var machineStateSyncJob: Job

@@ -42,31 +42,31 @@ data class Machine(
 @Dao
 interface MachineDao {
     @Query("SELECT * FROM ${Machine.TABLE_NAME} WHERE id = :id")
-    fun getById(id: String): Machine?
+    suspend fun getById(id: String): Machine?
 
     @Query("SELECT * FROM ${Machine.TABLE_NAME} ORDER BY time DESC")
     fun list(): Flow<List<Machine>>
 
     @Query("SELECT * FROM ${Machine.TABLE_NAME} ORDER BY time DESC")
-    fun listNormal(): List<Machine>
+    suspend fun listNormal(): List<Machine>
 
     @Insert
-    fun insert(machine: Machine)
+    suspend fun insert(machine: Machine)
 
     @Insert
-    fun insert(machines: Collection<Machine>)
+    suspend fun insert(machines: Collection<Machine>)
 
     @Update
-    fun update(machine: Machine)
+    suspend fun update(machine: Machine)
 
     @Query("DELETE FROM ${Machine.TABLE_NAME} WHERE id = :id")
-    fun delete(id: String)
+    suspend fun delete(id: String)
 
     @Query("DELETE FROM ${Machine.TABLE_NAME}")
-    fun deleteAll()
+    suspend fun deleteAll()
 
     @Transaction
-    fun import(machines: List<Machine>) {
+    suspend fun import(machines: List<Machine>) {
         deleteAll()
         insert(machines)
     }
