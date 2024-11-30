@@ -1,4 +1,4 @@
-package top.e404.mywol
+package top.e404.mywol.util
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -12,14 +12,15 @@ private const val WOL_PORT = 9
 private val INTERFACE_LIST = listOf("wlan", "eth", "tun")
 
 @OptIn(ExperimentalStdlibApi::class)
-suspend fun sendMagicPacket(ip: String?, mac: String) {
+suspend fun sendWolPacket(ip: String, mac: String) {
     // 12个F + 重复16次的主机MAC地址
     val command = "${"F".repeat(12)}${mac.replace(":", "").repeat(16)}".hexToByteArray()
 
     withContext(Dispatchers.IO) {
         DatagramSocket().use {
-            it.send(DatagramPacket(command, command.size, InetAddress.getByName(ip), WOL_PORT))
-            getBroadcastAddress().forEach { address ->
+            var addresses = getBroadcastAddress()
+            if (ip.isNotBlank()) addresses += InetAddress.getByName(ip)
+            addresses.toSet().forEach { address ->
                 it.send(DatagramPacket(command, command.size, address, WOL_PORT))
             }
         }

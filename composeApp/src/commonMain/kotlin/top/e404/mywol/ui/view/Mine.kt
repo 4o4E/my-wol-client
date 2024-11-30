@@ -27,7 +27,6 @@ import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.unit.dp
 import com.russhwolf.settings.set
 import org.jetbrains.compose.ui.tooling.preview.Preview
-import top.e404.mywol.NavController
 import top.e404.mywol.Router
 import top.e404.mywol.appIcon
 import top.e404.mywol.vm.RemoteVm
@@ -38,7 +37,6 @@ import top.e404.mywol.vm.WsState
 @Preview
 @Composable
 fun Mine() {
-    val nav = NavController.current
     var showAbout by remember { mutableStateOf(false) }
     fun getModifier() = Modifier.padding(10.dp).fillMaxWidth()
     if (showAbout) AlertDialog(onDismissRequest = {
@@ -77,7 +75,7 @@ fun Mine() {
             "确定",
             getModifier().clickable {
                 importConfirm = false
-                nav.navigate(Router.LOCAL.routerName)
+                UiVm.navigate(Router.LOCAL)
             },
         )
     }, dismissButton = {
@@ -134,8 +132,8 @@ fun Mine() {
                 "重置服务器地址",
                 getModifier().clickable {
                     SettingsVm.remote.remove("serverAddress")
-                    RemoteVm.close()
-                    RemoteVm.state = WsState.RECONNECTING
+                    RemoteVm.stop()
+                    RemoteVm.state = WsState.INITIALIZING
                     RemoteVm.initializing = true
                     UiVm.showSnackbar("重置完成")
                 },

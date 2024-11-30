@@ -14,7 +14,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import top.e404.mywol.ui.components.LocalMachineItem
+import top.e404.mywol.ui.components.MachineItem
+import top.e404.mywol.ui.components.LocalMachineWrapper
 import top.e404.mywol.vm.LocalVm
 import top.e404.mywol.vm.UiVm
 
@@ -30,8 +31,9 @@ fun Local() {
         LazyColumn(
             Modifier
                 .align(Alignment.CenterHorizontally)
-                .padding(10.dp)) {
-            items(list.size) { LocalMachineItem(list[it]) }
+                .padding(10.dp)
+        ) {
+            items(list.size) { MachineItem(LocalMachineWrapper(list[it])) }
         }
     }
     if (editMachine != null) {
@@ -40,7 +42,7 @@ fun Local() {
             modifier = Modifier.fillMaxWidth(),
             onDismissRequest = { editMachine = null }
         ) {
-            EditMachine(editMachine)
+            EditMachine()
         }
     }
 }

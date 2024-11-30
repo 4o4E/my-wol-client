@@ -32,6 +32,7 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             implementation(libs.koin.android)
             implementation(libs.logback.android)
+            implementation(libs.jmx)
         }
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -70,6 +71,10 @@ kotlin {
             implementation(libs.sqlite.bundled)
             // preview
             implementation(libs.androidx.compose.ui.tooling.preview)
+            // ssh
+            implementation(libs.sshd.core)
+            implementation(libs.sshd.common)
+            implementation(libs.sshd.putty)
         }
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)
@@ -97,6 +102,7 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/{DEPENDENCIES,LICENSE,NOTICE}"
         }
     }
     buildTypes {

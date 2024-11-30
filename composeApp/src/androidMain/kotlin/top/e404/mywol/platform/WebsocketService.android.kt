@@ -38,6 +38,7 @@ actual class WebsocketService : Service() {
 
         actual fun stop() {
             ctx.stopService(Intent(ctx, WebsocketService::class.java))
+            instance?.handler?.close()
         }
 
         private val channelId by lazy {
@@ -68,7 +69,7 @@ actual class WebsocketService : Service() {
 
     override fun onBind(intent: Intent) = null
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
-        val id = intent.getStringExtra("id")!!
+        val id = intent.getStringExtra("id") ?: return START_NOT_STICKY
         val name = intent.getStringExtra("name")!!
         val address = intent.getStringExtra("address")!!
         val secret = intent.getStringExtra("secret")!!
@@ -80,6 +81,14 @@ actual class WebsocketService : Service() {
             .setContentText("服务正在运行...")
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setSmallIcon(R.drawable.icon)
+//            .setContentIntent(
+//                PendingIntent.getActivity(
+//                    AndroidMain.appContext,
+//                    0, // 请求码
+//                    Intent(AndroidMain.appContext, AndroidMain::class.java),
+//                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+//                )
+//            )
             .build()
         startForeground(1, notification)
         handler!!.start()

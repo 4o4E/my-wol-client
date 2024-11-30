@@ -1,5 +1,6 @@
 package top.e404.mywol.vm
 
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +24,8 @@ import java.net.InetAddress
 object LocalVm : ViewModel(), KoinComponent {
     private val log = logger()
     private val machineRepository: MachineRepository by inject()
+
+    val detailMachineAnimation = mutableStateOf(false)
 
     val itemList = list().stateIn(
         viewModelScope,
@@ -66,10 +69,12 @@ object LocalVm : ViewModel(), KoinComponent {
         }
     }
 
+    fun stop() = machineStateSyncJob.cancel()
+
     private const val PING_TIMEOUT = 3000
     private suspend fun getMachineState(machine: Machine) = withContext(Dispatchers.IO) {
         try {
-            val address = InetAddress.getByName(machine.deviceIp)
+            val address = InetAddress.getByName(machine.deviceHost)
             if (address?.isReachable(PING_TIMEOUT) == true) MachineState.ON
             else MachineState.OFF
         } catch (t: Throwable) {

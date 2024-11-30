@@ -5,9 +5,7 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [
-        Machine::class,
-    ],
+    entities = [Machine::class],
     version = 1
 )
 abstract class WolDatabase : RoomDatabase() {

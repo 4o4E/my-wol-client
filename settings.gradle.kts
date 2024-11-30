@@ -26,6 +26,7 @@ dependencyResolutionManagement {
         }
         gradlePluginPortal()
         mavenCentral()
+        maven("https://www.datanucleus.org/downloads/maven2/")
     }
 }
 

@@ -6,13 +6,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,6 +33,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,47 +41,56 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import top.e404.mywol.dao.Machine
+import top.e404.mywol.dao.SshSecretType
+import top.e404.mywol.dao.validate
+import top.e404.mywol.dao.validateMachine
 import top.e404.mywol.util.valueWithError
 import top.e404.mywol.vm.LocalVm
 import top.e404.mywol.vm.RemoteVm
 import top.e404.mywol.vm.UiVm
 import java.util.UUID
 
-private val IP_REGEX = Regex(
-    "(?i)((25[0-5]|2[0-4]\\d|1\\d{2}|[1-9]?\\d)(\\.(?!$)|$)){4}|" + // IPv4
-            "([\\da-f]{1,4}:){7}[0-9a-f]{1,4}|" +                 // IPv6 (full form)
-            "(([\\da-f]{1,4}:){1,7}:)|" +                         // IPv6 (:: shortcut)
-            "(([\\da-f]{1,4}:){1,6}:[\\da-f]{1,4})|" +            // IPv6 (1 missing group)
-            "(([\\da-f]{1,4}:){1,5}(:[\\da-f]{1,4}){1,2})|" +     // IPv6 (2 missing groups)
-            "(([\\da-f]{1,4}:){1,4}(:[\\da-f]{1,4}){1,3})|" +     // IPv6 (3 missing groups)
-            "(([\\da-f]{1,4}:){1,3}(:[\\da-f]{1,4}){1,4})|" +     // IPv6 (4 missing groups)
-            "(([\\da-f]{1,4}:){1,2}(:[\\da-f]{1,4}){1,5})|" +     // IPv6 (5 missing groups)
-            "([\\da-f]{1,4}:((:[\\da-f]{1,4}){1,6}))|" +          // IPv6 (6 missing groups)
-            "(::((:[\\da-f]{1,4}){1,7}|:))"                       // IPv6 (:: alone))
-)
-private val MAC_REGEX = Regex("(?i)([\\da-z]{2}:){5}([\\da-z]{2})")
-
 @Composable
-fun EditMachine(machine: Machine? = null) {
+fun EditMachine() {
+    var machine by remember { UiVm.editMachine }
+
+    // wol info
     var name by remember { mutableStateOf(TextFieldValue(machine?.name ?: "")) }
     var nameError by remember { mutableStateOf<String?>(null) }
-    var deviceIp by remember { mutableStateOf(TextFieldValue(machine?.deviceIp ?: "")) }
-    var deviceIpError by remember { mutableStateOf<String?>(null) }
-    var broadcastIp by remember { mutableStateOf(TextFieldValue(machine?.deviceIp ?: "")) }
-    var broadcastIpError by remember { mutableStateOf<String?>(null) }
+    var deviceHost by remember { mutableStateOf(TextFieldValue(machine?.deviceHost ?: "")) }
+    var deviceHostError by remember { mutableStateOf<String?>(null) }
+    var wolHost by remember { mutableStateOf(TextFieldValue(machine?.wolHost ?: "")) }
+    var wolHostError by remember { mutableStateOf<String?>(null) }
+    var wolPort by remember { mutableStateOf(TextFieldValue(machine?.wolPort?.toString() ?: "")) }
+    var wolPortError by remember { mutableStateOf<String?>(null) }
     var mac by remember { mutableStateOf(TextFieldValue(machine?.mac ?: "")) }
     var macLast by remember { mutableStateOf(machine?.mac ?: "") }
     var macError by remember { mutableStateOf<String?>(null) }
+    // ssh info
+    var sshPort by remember { mutableStateOf(TextFieldValue(machine?.sshPort?.toString() ?: "")) }
+    var sshPortError by remember { mutableStateOf<String?>(null) }
+    var sshUsername by remember { mutableStateOf(TextFieldValue(machine?.sshUsername ?: "")) }
+    var sshUsernameError by remember { mutableStateOf<String?>(null) }
+    var sshSecretType by remember { mutableStateOf(machine?.sshSecretType ?: SshSecretType.PASSWORD) }
+    var sshSecretValue by remember { mutableStateOf(TextFieldValue(machine?.sshSecretValue ?: "")) }
+    var sshSecretValueError by remember { mutableStateOf<String?>(null) }
+    var sshCharset by remember { mutableStateOf(TextFieldValue(machine?.sshCharset ?: "")) }
+    var sshCharsetError by remember { mutableStateOf<String?>(null) }
+    var sshShutdownCommand by remember { mutableStateOf(TextFieldValue(machine?.sshShutdownCommand ?: "")) }
+
+    fun isSshEnabled() = sshPort.text.isNotBlank()
+            || sshUsername.text.isNotBlank()
+            || sshSecretValue.text.isNotBlank()
+            || sshCharset.text.isNotBlank()
 
     val isAdd = machine == null
-    var editMachine by remember { UiVm.editMachine }
 
+    val scrollState = rememberScrollState()
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(10.dp)
-            .imePadding(),
-        verticalArrangement = Arrangement.Center,
+            .verticalScroll(scrollState),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         val coroutineScope = rememberCoroutineScope()
@@ -84,60 +98,70 @@ fun EditMachine(machine: Machine? = null) {
         val focusRequester = remember { FocusRequester() }
         val scope = rememberCoroutineScope()
         val onDone: () -> Unit = onClick@{
-            if (name.text.isEmpty()) {
-                nameError = "请输入名字"
-                return@onClick
+            var hasError = false
+            fun check(error: String?, block: (String) -> Unit) {
+                if (error != null) {
+                    block(error)
+                    hasError = true
+                }
             }
-            if (deviceIp.text.isEmpty()) {
-                deviceIpError = "请输入ip"
-                return@onClick
+
+            validateMachine {
+                check(name.text.validateNotBlank()) { nameError = it }
+                check(deviceHost.text.validateHost()) { deviceHostError = it }
+                check(wolHost.text.validateHost(true)) { wolHostError = it }
+                check(wolPort.text.validatePort()) { wolPortError = it }
+                check(mac.text.validateMac()) { macError = it }
+                if (hasError) return@onClick
+                if (isSshEnabled()) {
+                    check(sshPort.text.validatePort()) { sshPortError = it }
+                    check(sshUsername.text.validateNotBlank()) { sshUsernameError = it }
+                    check(sshSecretValue.text.validateNotBlank()) { sshSecretValueError = it }
+                    check(sshCharset.text.validateCharset()) { sshCharsetError = it }
+                }
+                if (hasError) return@onClick
             }
-            if (!deviceIp.text.matches(IP_REGEX)) {
-                return@onClick
-            }
-            if (broadcastIp.text.isEmpty()) {
-                broadcastIpError = "请输入ip"
-                return@onClick
-            }
-            if (!broadcastIp.text.matches(IP_REGEX)) {
-                return@onClick
-            }
-            if (mac.text.isEmpty()) {
-                macError = "请输入mac"
-                return@onClick
-            }
-            if (!mac.text.matches(MAC_REGEX)) {
-                return@onClick
-            }
+
             coroutineScope.launch(Dispatchers.IO) {
                 val new = Machine(
                     machine?.id ?: UUID.randomUUID().toString(),
                     name.text,
-                    deviceIp.text,
-                    broadcastIp.text,
+                    deviceHost.text,
+                    wolHost.text,
+                    wolPort.text.toInt(),
                     mac.text,
+
+                    sshPort.text.toIntOrNull() ?: 0,
+                    sshUsername.text,
+                    sshSecretType,
+                    sshSecretValue.text,
+                    sshCharset.text,
+                    sshShutdownCommand.text,
+
                     System.currentTimeMillis()
                 )
                 if (isAdd) LocalVm.save(new)
                 else LocalVm.update(new)
                 withContext(Dispatchers.Main) {
                     keyboard?.hide()
-                    editMachine = null
+                    if (isAdd) UiVm.showAdd.value = false
+                    else machine = null
                     UiVm.showSnackbar("已${if (isAdd) "添加" else "保存"}")
                 }
             }
         }
 
+        // title
         Text(
             text = if (isAdd) "添加机器" else "修改机器",
             modifier = Modifier.align(Alignment.CenterHorizontally),
             fontSize = 25.sp
         )
         Spacer(Modifier.height(20.dp))
+
+        // wol info
         OutlinedTextField(
-            label = {
-                Text(text = valueWithError("名字", nameError))
-            },
+            label = { Text(text = valueWithError("名字", nameError)) },
             modifier = Modifier.focusRequester(focusRequester),
             value = name,
             maxLines = 1,
@@ -145,40 +169,55 @@ fun EditMachine(machine: Machine? = null) {
             isError = nameError != null,
             onValueChange = {
                 name = it
+                nameError = validate { it.text.validateNotBlank() }
             }
         )
         Spacer(Modifier.height(10.dp))
         OutlinedTextField(
-            label = { Text(text = valueWithError("设备ip地址", deviceIpError)) },
+            label = { Text(text = valueWithError("设备ip地址", deviceHostError)) },
             placeholder = { Text("xxx.xxx.xxx.xxx") },
-            value = deviceIp,
+            value = deviceHost,
             maxLines = 1,
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Ascii,
                 imeAction = ImeAction.Next
             ),
-            isError = deviceIpError != null,
+            isError = deviceHostError != null,
             onValueChange = {
-                deviceIp = it
-                deviceIpError = if (it.text.matches(IP_REGEX)) null else "无效ip"
+                deviceHost = it
+                deviceHostError = validate { it.text.validateHost() }
             }
         )
         Spacer(Modifier.height(10.dp))
         OutlinedTextField(
-            label = { Text(text = valueWithError("广播ip地址", broadcastIpError)) },
+            label = { Text(text = valueWithError("广播地址(可选)", wolHostError)) },
             placeholder = { Text("xxx.xxx.xxx.xxx") },
-            value = broadcastIp,
+            value = wolHost,
             maxLines = 1,
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Ascii,
                 imeAction = ImeAction.Next
             ),
-            isError = deviceIpError != null,
+            isError = wolHostError != null,
             onValueChange = {
-                broadcastIp = it
-                broadcastIpError =
-                    if (it.text.isBlank() || it.text.matches(IP_REGEX)) null
-                    else "无效ip"
+                wolHost = it
+                wolHostError = validate { it.text.validateHost(true) }
+            }
+        )
+        Spacer(Modifier.height(10.dp))
+        OutlinedTextField(
+            label = { Text(text = valueWithError("广播端口", wolPortError)) },
+            placeholder = { Text("9") },
+            value = wolPort,
+            maxLines = 1,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number,
+                imeAction = ImeAction.Next
+            ),
+            isError = wolPortError != null,
+            onValueChange = {
+                wolPort = it
+                wolPortError = validate { it.text.validatePort() }
             }
         )
         Spacer(Modifier.height(10.dp))
@@ -187,16 +226,123 @@ fun EditMachine(machine: Machine? = null) {
             modifier = Modifier,
             value = mac,
             maxLines = 1,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { onDone() }),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number,
+                imeAction = ImeAction.Next
+            ),
             isError = macError != null,
             onValueChange = {
                 mac = autoCompleteMac(it, macLast)
-                macError = if (it.text.matches(MAC_REGEX)) null else "无效mac"
+                macError = validate { it.text.validateMac() }
                 macLast = mac.text
             }
         )
+
         Spacer(Modifier.height(20.dp))
+        Text(
+            text = "SSH",
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+            fontSize = 22.sp
+        )
+        Spacer(Modifier.height(20.dp))
+
+        // ssh info
+        SingleChoiceSegmentedButtonRow {
+            val types = SshSecretType.entries
+            for ((index, type) in types.withIndex()) {
+                SegmentedButton(
+                    sshSecretType == type,
+                    { sshSecretType = type },
+                    SegmentedButtonDefaults.itemShape(index = index, count = types.size)
+                ) { Text(type.display) }
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        OutlinedTextField(
+            label = { Text(text = valueWithError("ssh端口", sshPortError)) },
+            modifier = Modifier,
+            value = sshPort,
+            maxLines = 1,
+            placeholder = { Text("22") },
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number,
+                imeAction = ImeAction.Next
+            ),
+            isError = sshPortError != null,
+            onValueChange = {
+                sshPort = it
+                sshPortError = validate { it.text.validatePort() }
+            }
+        )
+        Spacer(Modifier.height(10.dp))
+        OutlinedTextField(
+            label = { Text(text = valueWithError("ssh用户名", sshUsernameError)) },
+            modifier = Modifier,
+            value = sshUsername,
+            maxLines = 1,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Ascii,
+                imeAction = ImeAction.Next
+            ),
+            isError = sshUsernameError != null,
+            onValueChange = {
+                sshUsername = it
+                sshUsernameError = validate { it.text.validateNotBlank() }
+            }
+        )
+        Spacer(Modifier.height(10.dp))
+        val transformation = remember { PasswordVisualTransformation() }
+        OutlinedTextField(
+            label = { Text(text = valueWithError("ssh${sshSecretType.display}", sshSecretValueError)) },
+            modifier = Modifier,
+            value = sshSecretValue,
+            visualTransformation = transformation,
+            maxLines = 1,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Ascii,
+                imeAction = ImeAction.Next
+            ),
+            isError = sshSecretValueError != null,
+            onValueChange = {
+                sshSecretValue = it
+                sshSecretValueError = validate { it.text.validateNotBlank() }
+            }
+        )
+        Spacer(Modifier.height(10.dp))
+        OutlinedTextField(
+            label = { Text(text = valueWithError("ssh字符集", sshCharsetError)) },
+            modifier = Modifier,
+            value = sshCharset,
+            maxLines = 1,
+            placeholder = { Text("UTF8 / GBK") },
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number,
+                imeAction = ImeAction.Next
+            ),
+            keyboardActions = KeyboardActions(onDone = { onDone() }),
+            isError = sshCharsetError != null,
+            onValueChange = {
+                sshCharset = it
+                sshCharsetError = validate { it.text.validateCharset() }
+            }
+        )
+        Spacer(Modifier.height(10.dp))
+        OutlinedTextField(
+            label = { Text(text = "ssh关机指令") },
+            modifier = Modifier,
+            value = sshShutdownCommand,
+            maxLines = 1,
+            placeholder = { Text("poweroff / shutdown /p") },
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Ascii,
+                imeAction = ImeAction.Done
+            ),
+            keyboardActions = KeyboardActions(onDone = { onDone() }),
+            onValueChange = { sshShutdownCommand = it }
+        )
+        Spacer(Modifier.height(10.dp))
+
+        // 操作按钮
         Row(
             Modifier.fillMaxWidth(),
             Arrangement.Center,
@@ -209,11 +355,19 @@ fun EditMachine(machine: Machine? = null) {
                     scope.launch(Dispatchers.IO) {
                         LocalVm.remove(machine!!.id)
                         RemoteVm.syncMachines()
-                        editMachine = null
+                        machine = null
                     }
                 }) { Text("删除") }
             }
+            Spacer(modifier = Modifier.width(20.dp))
+            Button({
+                scope.launch(Dispatchers.IO) {
+                    if (!isAdd) machine = null
+                    else UiVm.showAdd.value = false
+                }
+            }) { Text("取消") }
         }
+
         LaunchedEffect(true) {
             keyboard?.show()
             focusRequester.requestFocus()

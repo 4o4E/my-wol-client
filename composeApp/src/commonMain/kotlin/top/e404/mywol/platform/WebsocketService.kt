@@ -21,6 +21,7 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -29,16 +30,26 @@ import top.e404.mywol.model.MachineState
 import top.e404.mywol.model.WolMachine
 import top.e404.mywol.model.WsC2sData
 import top.e404.mywol.model.WsS2cData
+import top.e404.mywol.model.WsSshC2s
+import top.e404.mywol.model.WsSshHistoryC2s
+import top.e404.mywol.model.WsSshHistoryS2c
+import top.e404.mywol.model.WsSshS2c
+import top.e404.mywol.model.WsSshShutdownC2s
+import top.e404.mywol.model.WsSshShutdownS2c
 import top.e404.mywol.model.WsSyncC2s
 import top.e404.mywol.model.WsSyncS2c
 import top.e404.mywol.model.WsWolC2s
 import top.e404.mywol.model.WsWolS2c
-import top.e404.mywol.sendMagicPacket
 import top.e404.mywol.util.debug
+import top.e404.mywol.util.info
 import top.e404.mywol.util.logger
+import top.e404.mywol.util.sendWolPacket
 import top.e404.mywol.util.warn
 import top.e404.mywol.vm.LocalVm
 import top.e404.mywol.vm.RemoteVm
+import top.e404.mywol.vm.Result
+import top.e404.mywol.vm.SshReq
+import top.e404.mywol.vm.SshVm
 import top.e404.mywol.vm.UiVm
 import top.e404.mywol.vm.WolReq
 import top.e404.mywol.vm.WsState
@@ -73,6 +84,21 @@ suspend fun WebsocketService.Companion.sendWolReq(
 ) = instance!!
     .handler!!
     .sendWolReq(clientId, machineId)
+
+suspend fun WebsocketService.Companion.sendSshReq(
+    clientId: String,
+    machineId: String,
+    command: String
+) = instance!!
+    .handler!!
+    .sendSshReq(clientId, machineId, command)
+
+suspend fun WebsocketService.Companion.sendSshShutdown(
+    clientId: String,
+    machineId: String,
+) = instance!!
+    .handler!!
+    .sendSshShutdown(clientId, machineId)
 
 class WebsocketHandler(
     val id: String,
@@ -114,29 +140,28 @@ class WebsocketHandler(
         websocketScope.launch(Dispatchers.IO) {
             UiVm.showSnackbar("websocket连接异常, 将在3秒后重连")
             delay(3000)
-            connectWebsocket()
+            websocket()
         }
         log.warn("uncaught exception in websocket: ", t)
     }).also { setCtx(it) }
     private lateinit var websocketScope: CoroutineScope
 
-    private suspend fun connectWebsocket() {
-        log.debug("初始化服务器连接")
-        websocket()
-        UiVm.showSnackbar("初始化服务器连接完成")
-        log.debug("初始化服务器连接完成")
-    }
-
     fun start() {
         if (state != WsState.INITIALIZING) {
-            log.warn { "ws处理器已启动, state: $state" }
+            log.warn("ws处理器已启动, state: $state, ", RuntimeException())
             return
         }
         log.debug { "启动ws处理器" }
         state = WsState.CONNECTING
         websocketScope.launch {
-            connectWebsocket()
+            websocket()
         }
+    }
+
+    private var lastSync = 0L
+    private var autoSyncJob = UiVm.ioScope.launch {
+        delay(10_000 * 60)
+        if (state == WsState.OPEN) syncMachines()
     }
 
     /**
@@ -144,29 +169,32 @@ class WebsocketHandler(
      */
     suspend fun syncMachines() {
         val list = withContext(Dispatchers.IO) { LocalVm.listNormal() }
+        log.info { "同步本机设备: ${list.map { it.name }}" }
         sendPacket(WsSyncC2s(list.map { machine ->
             WolMachine(
                 machine.id,
                 machine.name,
-                machine.mac,
-                machine.deviceIp,
-                machine.broadcastIp,
-                LocalVm.machineState[machine.id] ?: MachineState.OFF
+                machine.time,
+                LocalVm.machineState[machine.id] ?: MachineState.OFF,
+                machine.sshUsername.isNotBlank(),
+                machine.sshShutdownCommand.isNotBlank()
             )
         }))
+        lastSync = System.currentTimeMillis()
     }
 
     /**
      * 启动websocket连接
      */
     private suspend fun websocket() {
-        log.debug { "启动websocket连接: $wsUrl" }
+        log.debug { "开始websocket连接: $wsUrl" }
         httpClient.webSocket(wsUrl, {
             header("id", id)
             header("name", name)
         }) {
-            state = WsState.OPEN
+            log.debug { "完成websocket连接" }
             UiVm.showSnackbar("服务器已连接")
+            state = WsState.OPEN
             sendPacket = {
                 val json = json.encodeToString(WsC2sData.serializer(), it)
                 log.debug("发送数据包: {}", json)
@@ -217,7 +245,7 @@ class WebsocketHandler(
                     return
                 }
                 UiVm.showSnackbar("正在唤醒${machine.name}")
-                sendMagicPacket(machine.deviceIp, machine.mac)
+                sendWolPacket(machine.deviceHost, machine.mac)
                 val packet = WsWolC2s(true, "", s2cData.id)
                 sendPacket(packet)
             }
@@ -225,12 +253,58 @@ class WebsocketHandler(
             is WsSyncS2c -> {
                 log.debug { "同步远程客户端信息: ${s2cData.clients}" }
                 RemoteVm.clients.value = s2cData.clients
+                RemoteVm.sshHistories.keys
+                    .filter { id -> s2cData.clients.any { it.id == id } }
+                    .forEach { RemoteVm.sshHistories.remove(it) }
+            }
+
+            is WsSshHistoryS2c -> {
+                val machine = LocalVm.itemList.value.find { it.id == s2cData.machineId }
+                if (machine == null) {
+                    val packet = WsSshHistoryC2s(false, "没有该机器", emptyList(), s2cData.id)
+                    sendPacket(packet)
+                    return
+                }
+                val history = SshVm.getOrCreate(machine).history.value
+                val packet = WsSshHistoryC2s(true, "", history, s2cData.id)
+                sendPacket(packet)
+            }
+
+            is WsSshS2c -> {
+                val machine = LocalVm.itemList.value.find { it.id == s2cData.machineId }
+                if (machine == null) {
+                    val packet = WsSshC2s(false, "没有该机器", s2cData.id)
+                    sendPacket(packet)
+                    return
+                }
+                val handler = SshVm.getOrCreate(machine)
+                handler.start()
+                val result = handler.exec(s2cData.command)
+                val packet =
+                    if (result.success) WsSshC2s(true, result.result, s2cData.id)
+                    else WsSshC2s(false, result.message, s2cData.id)
+                sendPacket(packet)
+            }
+
+            is WsSshShutdownS2c -> {
+                val machine = LocalVm.itemList.value.find { it.id == s2cData.machineId }
+                if (machine == null) {
+                    val packet = WsSshC2s(false, "没有该机器", s2cData.id)
+                    sendPacket(packet)
+                    return
+                }
+                val handler = SshVm.getOrCreate(machine)
+                handler.start()
+                val result = handler.exec(machine.sshShutdownCommand)
+                val packet =
+                    if (result.success) WsSshShutdownC2s(true, result.result, s2cData.id)
+                    else WsSshShutdownC2s(false, result.message, s2cData.id)
+                sendPacket(packet)
             }
         }
     }
 
-    suspend fun sendWolReq(clientId: String, machineId: String): String? {
-        log.debug { "发送请求" }
+    suspend fun sendWolReq(clientId: String, machineId: String): Result<Unit> {
         val response = try {
             httpClient.post("http://$serverAddress/wol") {
                 contentType(ContentType.Application.Json)
@@ -238,10 +312,48 @@ class WebsocketHandler(
             }
         } catch (e: Exception) {
             log.warn("发送wol请求失败: ", e)
-            return e.message
+            return Result.fail(e.message ?: "发送wol请求失败")
         }
-        log.debug { "接收响应" }
-        return if (response.status == HttpStatusCode.OK) null else "${response.status.value}: ${response.bodyAsText()}"
+        return if (response.status == HttpStatusCode.OK) Result.success(Unit)
+        else Result.fail(response.bodyAsText())
     }
 
+    suspend fun sendSshReq(clientId: String, machineId: String, command: String): Result<String> {
+        log.debug { "发送请求" }
+        val response = try {
+            httpClient.post("http://$serverAddress/ssh") {
+                contentType(ContentType.Application.Json)
+                setBody(SshReq(clientId, machineId, command))
+            }
+        } catch (e: Exception) {
+            log.warn("发送ssh请求失败: ", e)
+            return Result.fail(e.message ?: "发送ssh请求失败")
+        }
+        log.debug { "接收响应" }
+        return if (response.status == HttpStatusCode.OK) Result.success(response.bodyAsText())
+        else Result.fail(response.bodyAsText())
+    }
+
+    suspend fun sendSshShutdown(clientId: String, machineId: String): Result<String> {
+        log.debug { "发送请求" }
+        val response = try {
+            httpClient.post("http://$serverAddress/ssh/shutdown") {
+                contentType(ContentType.Application.Json)
+                setBody(WolReq(clientId, machineId))
+            }
+        } catch (e: Exception) {
+            log.warn("发送ssh请求失败: ", e)
+            return Result.fail(e.message ?: "发送ssh请求失败")
+        }
+        log.debug { "接收响应" }
+        return if (response.status == HttpStatusCode.OK) Result.success(response.bodyAsText())
+        else Result.fail(response.bodyAsText())
+    }
+
+    fun close() {
+        autoSyncJob.cancel()
+        closeWebsocket()
+        connectScope.cancel()
+        websocketScope.cancel()
+    }
 }

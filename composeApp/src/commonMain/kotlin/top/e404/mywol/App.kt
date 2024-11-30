@@ -2,11 +2,11 @@ package top.e404.mywol
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.WifiTethering
 import androidx.compose.material.icons.outlined.Person
@@ -25,23 +25,16 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.ProvidableCompositionLocal
-import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
+import kotlinx.coroutines.delay
 import top.e404.mywol.ui.view.EditMachine
 import top.e404.mywol.ui.view.Local
 import top.e404.mywol.ui.view.Mine
@@ -53,38 +46,32 @@ import top.e404.mywol.vm.UiVm
 
 @Composable
 fun App() {
-    val controller = rememberNavController()
+    UiVm.initController()
     val colorScheme =
         if (isSystemInDarkTheme()) darkColorScheme()
         else lightColorScheme()
     var showAdd by remember { UiVm.showAdd }
-    var isDebug by remember { UiVm.isDebug }
     LaunchedEffect(Unit) {
-        isDebug = SettingsVm.local.getBoolean("isDebug", false)
+        UiVm.isDebug.value = SettingsVm.local.getBoolean("isDebug", false)
     }
     LaunchedEffect(Unit) {
+        delay(1000)
         if (SettingsVm.remote.getString("serverAddress", "").isNotEmpty()) {
             RemoteVm.startWebsocket()
         }
     }
     MaterialTheme(colorScheme = colorScheme) {
         val bottomBarHeight = 70.dp
-        var currentRouter by remember { mutableStateOf(Router.DEFAULT) }
         Scaffold(
             bottomBar = {
                 NavigationBar {
                     for (router in Router.entries) {
-                        val selected = currentRouter == router
+                        val selected = UiVm.currentRouter == router
                         NavigationBarItem(
                             selected = selected,
                             icon = { Icon(router.getIcon(selected), null) },
                             label = { Text(router.displayName) },
-                            onClick = {
-                                if (!selected) {
-                                    controller.navigate(router.routerName)
-                                    currentRouter = router
-                                }
-                            },
+                            onClick = { UiVm.navigate(router) },
                         )
                     }
                 }
@@ -96,14 +83,12 @@ fun App() {
                         .padding(bottom = bottomBarHeight),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    CompositionLocalProvider(NavController provides controller) {
-                        NavHost(
-                            navController = controller,
-                            startDestination = Router.LOCAL.routerName
-                        ) {
-                            for (router in Router.entries) {
-                                composable(router.routerName) { router.route() }
-                            }
+                    NavHost(
+                        navController = UiVm.controller,
+                        startDestination = Router.DEFAULT.routerName
+                    ) {
+                        for (router in Router.entries) {
+                            composable(router.routerName) { router.route() }
                         }
                     }
                 }
@@ -116,27 +101,29 @@ fun App() {
                     val modalBottomSheetState = rememberModalBottomSheetState(true) { true }
                     ModalBottomSheet(
                         sheetState = modalBottomSheetState,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxSize(),
                         onDismissRequest = {
                             showAdd = false
                         }
                     ) {
                         EditMachine()
                     }
+                    return@Scaffold
                 }
-                FloatingActionButton(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    onClick = {
-                        showAdd = true
+                if (UiVm.currentRouter == Router.LOCAL) {
+                    FloatingActionButton(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        onClick = { showAdd = true }
+                    ) {
+                        Icon(
+                            Icons.Filled.Add,
+                            contentDescription = null
+                        )
                     }
-                ) {
-                    Text(text = "+", color = MaterialTheme.colorScheme.onPrimary, fontSize = 26.sp)
                 }
             }
         )
-
-
     }
 }
 
@@ -178,19 +165,15 @@ enum class Router(
         Icons.Outlined.Person,
         Icons.Filled.Person,
         { Mine() }
-    )
+    ),
     ;
 
     companion object {
-        val DEFAULT = LOCAL
+        val DEFAULT get() = LOCAL
+        fun fromRoute(route: String) = entries.first { it.routerName == route }
     }
 
     fun getIcon(selected: Boolean): ImageVector = if (selected) selectedIcon else unselectedIcon
-}
-
-@Stable
-val NavController: ProvidableCompositionLocal<NavHostController> = staticCompositionLocalOf {
-    error("no resource provided")
 }
 
 @Suppress("UNUSED")

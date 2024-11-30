@@ -2,14 +2,42 @@ package top.e404.mywol.vm
 
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import top.e404.mywol.Router
 import top.e404.mywol.dao.Machine
+import top.e404.mywol.util.debug
+import top.e404.mywol.util.logger
 
 object UiVm {
+    private val log = logger()
+    var currentRouter by mutableStateOf(Router.LOCAL)
+    lateinit var controller: NavHostController private set
     val ioScope = CoroutineScope(Dispatchers.IO)
+
+    @Composable
+    fun initController() {
+        controller = rememberNavController()
+        controller.addOnDestinationChangedListener { _, target, _ ->
+            target.route?.let { currentRouter = Router.fromRoute(it) }
+        }
+    }
+
+    fun navigate(router: Router) {
+        if (currentRouter == router) {
+            log.debug { "跳过当前路由: $router" }
+            return
+        }
+        currentRouter = router
+        controller.navigate(router.routerName)
+    }
 
     /**
      * 展示一个 Snackbar 并且不阻塞

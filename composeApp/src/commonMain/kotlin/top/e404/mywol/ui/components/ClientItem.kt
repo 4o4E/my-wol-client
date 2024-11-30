@@ -31,7 +31,7 @@ fun ClientItem(client: WolClient) {
     }
     Column(Modifier.fillMaxWidth()) {
         for (machine in client.machines) {
-            RemoteMachineItem(client, machine)
+            MachineItem(RemoteMachineWrapper(client, machine))
         }
     }
 }

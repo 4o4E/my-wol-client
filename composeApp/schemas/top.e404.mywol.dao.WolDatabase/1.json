@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "4e6378d5fa4406925e9627e80991187a",
+    "identityHash": "ada7406650a5145125b38dc5a955df76",
     "entities": [
       {
         "tableName": "machine",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `deviceIp` TEXT NOT NULL, `broadcastIp` TEXT NOT NULL, `mac` TEXT NOT NULL, `time` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `deviceHost` TEXT NOT NULL, `wolHost` TEXT NOT NULL, `wolPort` INTEGER NOT NULL, `mac` TEXT NOT NULL, `sshPort` INTEGER NOT NULL, `sshUsername` TEXT NOT NULL, `sshSecretType` TEXT NOT NULL, `sshSecretValue` TEXT NOT NULL, `sshCharset` TEXT NOT NULL, `sshShutdownCommand` TEXT NOT NULL, `time` INTEGER NOT NULL, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -21,20 +21,62 @@
             "notNull": true
           },
           {
-            "fieldPath": "deviceIp",
-            "columnName": "deviceIp",
+            "fieldPath": "deviceHost",
+            "columnName": "deviceHost",
             "affinity": "TEXT",
             "notNull": true
           },
           {
-            "fieldPath": "broadcastIp",
-            "columnName": "broadcastIp",
+            "fieldPath": "wolHost",
+            "columnName": "wolHost",
             "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "wolPort",
+            "columnName": "wolPort",
+            "affinity": "INTEGER",
             "notNull": true
           },
           {
             "fieldPath": "mac",
             "columnName": "mac",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sshPort",
+            "columnName": "sshPort",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sshUsername",
+            "columnName": "sshUsername",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sshSecretType",
+            "columnName": "sshSecretType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sshSecretValue",
+            "columnName": "sshSecretValue",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sshCharset",
+            "columnName": "sshCharset",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sshShutdownCommand",
+            "columnName": "sshShutdownCommand",
             "affinity": "TEXT",
             "notNull": true
           },
@@ -55,7 +97,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '4e6378d5fa4406925e9627e80991187a')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'ada7406650a5145125b38dc5a955df76')"
     ]
   }
 }
