@@ -1,10 +1,11 @@
 package top.e404.mywol.vm
 
 import androidx.compose.runtime.mutableStateOf
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
@@ -19,16 +20,20 @@ import top.e404.mywol.model.MachineState
 import top.e404.mywol.repository.MachineRepository
 import top.e404.mywol.util.debug
 import top.e404.mywol.util.logger
+import top.e404.mywol.util.warn
 import java.net.InetAddress
 
-object LocalVm : ViewModel(), KoinComponent {
+object LocalVm : KoinComponent {
     private val log = logger()
     private val machineRepository: MachineRepository by inject()
 
+    val localVmScope = CoroutineScope(SupervisorJob() + CoroutineExceptionHandler { _, t ->
+        log.warn(t) { "uncaught exception in localVmScope: " }
+    })
     val detailMachineAnimation = mutableStateOf(false)
 
     val itemList = list().stateIn(
-        viewModelScope,
+        localVmScope,
         SharingStarted.Lazily,
         emptyList()
     )
@@ -49,7 +54,7 @@ object LocalVm : ViewModel(), KoinComponent {
     private lateinit var machineStateSyncJob: Job
     fun startSync() {
         log.debug { "startSync" }
-        machineStateSyncJob = viewModelScope.launch(Dispatchers.IO) {
+        machineStateSyncJob = localVmScope.launch(Dispatchers.IO) {
             while (true) {
                 val list = listNormal()
                 val stateMap = list.map {

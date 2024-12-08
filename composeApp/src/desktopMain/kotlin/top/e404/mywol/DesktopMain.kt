@@ -10,6 +10,7 @@ import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
 import org.koin.core.context.startKoin
 import top.e404.mywol.util.ScreenUtils
+import top.e404.mywol.util.debug
 import top.e404.mywol.util.error
 import top.e404.mywol.util.getCommonKoinModule
 import top.e404.mywol.util.logger
@@ -31,6 +32,7 @@ object DesktopMain {
     @JvmStatic
     fun main(args: Array<String>) {
         val defaultSize = DpSize(1301.dp, 855.dp)
+        log.debug { "Screen size: ${ScreenUtils.getScreenSize()}" }
         val windowState = WindowState(
             size = kotlin.runCatching {
                 calculateWindowSize(defaultSize.width, defaultSize.height)
@@ -50,6 +52,7 @@ object DesktopMain {
             modules(getCommonKoinModule({ context }))
         }
 
+        log.debug { "Starting application" }
 
         application {
             Window(

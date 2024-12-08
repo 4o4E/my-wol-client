@@ -17,3 +17,8 @@ captures
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
 .fleet
+
+.run/*
+!.run/*.run.xml
+.idea/
+composeApp/data

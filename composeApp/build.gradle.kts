@@ -33,6 +33,8 @@ kotlin {
             implementation(libs.koin.android)
             implementation(libs.logback.android)
             implementation(libs.jmx)
+            // preview
+            implementation(libs.androidx.compose.ui.tooling.preview)
         }
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -41,9 +43,6 @@ kotlin {
             implementation(compose.ui)
             implementation(compose.components.resources)
             implementation(compose.components.uiToolingPreview)
-            // lifecycle
-            implementation(libs.androidx.lifecycle.viewmodel)
-            implementation(libs.androidx.lifecycle.runtime.compose)
             // serialization
             implementation(libs.kotlin.serialization.core)
             implementation(libs.kotlin.serialization.json)
@@ -69,8 +68,6 @@ kotlin {
             implementation(libs.slf4j.api)
             // sqlite
             implementation(libs.sqlite.bundled)
-            // preview
-            implementation(libs.androidx.compose.ui.tooling.preview)
             // ssh
             implementation(libs.sshd.core)
             implementation(libs.sshd.common)
@@ -80,6 +77,7 @@ kotlin {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutines.swing)
             implementation(libs.logback.classic)
+            runtimeOnly(libs.kotlinx.coroutines.swing)
         }
     }
 }
