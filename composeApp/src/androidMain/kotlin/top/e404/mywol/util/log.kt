@@ -35,6 +35,7 @@ object AndroidLoggingConfigurator {
 
     <root level="TRACE">
         <appender-ref ref="logcat" />
+        <appender-ref ref="file" />
     </root>
 </configuration>
 """
