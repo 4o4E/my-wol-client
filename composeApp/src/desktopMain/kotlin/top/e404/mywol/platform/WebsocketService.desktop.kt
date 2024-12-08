@@ -37,7 +37,7 @@ actual class WebsocketService {
     }
 
     fun stop() {
-        handler?.closeWebsocket?.invoke()
+        handler?.closeWebsocket()
         handler = null
         instance = null
     }

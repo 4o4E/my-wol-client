@@ -16,6 +16,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.websocket.Frame
+import io.ktor.websocket.WebSocketSession
 import io.ktor.websocket.close
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -123,11 +124,27 @@ class WebsocketHandler(
         }
     }
 
-    private var sendPacket: suspend (packet: WsC2sData) -> Unit = {}
-    var closeWebsocket: () -> Unit = {}
-        private set
+    private var session: WebSocketSession? = null
+    private suspend fun sendPacket(packet: WsC2sData) {
+        if (session == null) error("websocket未连接")
+        try {
+            val json = json.encodeToString(WsC2sData.serializer(), packet)
+            log.debug("发送数据包: {}", json)
+            session!!.outgoing.send(Frame.Text(json))
+        } catch (t: Throwable) {
+            log.warn("发送数据包失败: ", t)
+        }
+    }
 
-    val connectScope = CoroutineScope(SupervisorJob() + CoroutineExceptionHandler { _, t ->
+    fun closeWebsocket() {
+        session?.let {
+            websocketScope.launch {
+                it.close()
+            }
+        } ?: error("websocket未连接")
+    }
+
+    private val connectScope = CoroutineScope(SupervisorJob() + CoroutineExceptionHandler { _, t ->
         log.warn(t) { "uncaught exception in connectScope: " }
     })
 
@@ -158,10 +175,11 @@ class WebsocketHandler(
         }
     }
 
-    private var lastSync = 0L
     private var autoSyncJob = UiVm.ioScope.launch {
-        delay(10_000 * 60)
-        if (state == WsState.OPEN) syncMachines()
+        while (true) {
+            delay(10_000 * 60)
+            if (state == WsState.OPEN) syncMachines()
+        }
     }
 
     /**
@@ -180,7 +198,6 @@ class WebsocketHandler(
                 machine.sshShutdownCommand.isNotBlank()
             )
         }))
-        lastSync = System.currentTimeMillis()
     }
 
     /**
@@ -192,17 +209,10 @@ class WebsocketHandler(
             header("id", id)
             header("name", name)
         }) {
+            session = this
             log.debug { "完成websocket连接" }
             UiVm.showSnackbar("服务器已连接")
             state = WsState.OPEN
-            sendPacket = {
-                val json = json.encodeToString(WsC2sData.serializer(), it)
-                log.debug("发送数据包: {}", json)
-                outgoing.send(Frame.Text(json))
-            }
-            closeWebsocket = {
-                connectScope.launch(Dispatchers.IO) { close() }
-            }
 
             connectScope.launch(Dispatchers.IO) {
                 val reason = closeReason.await()!!

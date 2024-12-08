@@ -14,8 +14,11 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
+import top.e404.mywol.util.AndroidLoggingConfigurator
 import top.e404.mywol.util.afterVer
+import top.e404.mywol.util.error
 import top.e404.mywol.util.getCommonKoinModule
+import top.e404.mywol.util.logger
 import top.e404.mywol.vm.LocalVm
 import top.e404.mywol.vm.RemoteVm
 import kotlin.system.exitProcess
@@ -27,6 +30,19 @@ class AndroidMain : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val logsDir = applicationContext
+            .externalCacheDir!!
+            .resolve("logs")
+            .also{ it.mkdirs() }
+            .absolutePath
+        AndroidLoggingConfigurator.configure(logsDir)
+
+        val defaultUEH = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { t, e ->
+            logger<AndroidMain>().error(e) { "!!!MYWOL FINAL EXCEPTION!!!" }
+            Thread.sleep(500)
+            defaultUEH?.uncaughtException(t, e)
+        }
         appContext = applicationContext
 
         afterVer(Build.VERSION_CODES.O) {

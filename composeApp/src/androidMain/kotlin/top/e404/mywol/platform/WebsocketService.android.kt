@@ -101,7 +101,7 @@ actual class WebsocketService : Service() {
     override fun onDestroy() {
         log.debug("销毁服务")
         super.onDestroy()
-        handler?.closeWebsocket?.invoke()
+        handler?.closeWebsocket()
         instance = null
         handler = null
         stopForeground(STOP_FOREGROUND_REMOVE)
