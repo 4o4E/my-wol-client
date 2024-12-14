@@ -94,7 +94,7 @@ android {
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
-        versionName = "1.0"
+        versionName = libs.versions.mywol.get()
     }
     packaging {
         resources {
@@ -128,6 +128,15 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+    androidComponents {
+        onVariants { variant ->
+            variant.outputs.forEach { output ->
+                if (output is com.android.build.api.variant.impl.VariantOutputImpl) {
+                    output.outputFileName = "MyWol-${variant.name}-${output.versionName.get()}.apk"
+                }
+            }
+        }
+    }
 }
 
 dependencies {
@@ -143,7 +152,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "top.e404.mywol"
-            packageVersion = "1.0.0"
+            packageVersion = libs.versions.mywol.get()
         }
     }
 }
