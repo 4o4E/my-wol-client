@@ -117,6 +117,7 @@ fun Mine() {
                 "导出",
                 getModifier().clickable {
                     // todo 导出
+                    UiVm.showSnackbar("尚未完成")
                 },
             )
             HorizontalDivider()
@@ -124,6 +125,7 @@ fun Mine() {
                 "导入",
                 getModifier().clickable {
                     // todo 导入
+                    UiVm.showSnackbar("尚未完成")
 //                    importConfirm = true
                 },
             )
