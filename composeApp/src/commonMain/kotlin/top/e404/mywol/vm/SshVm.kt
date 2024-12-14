@@ -83,14 +83,18 @@ class SshHandler(private val info: Machine) : Closeable {
     suspend fun exec(command: String): Result<String> {
         if (session == null) start()
         val session = session ?: return Result.fail("ssh未连接")
-        val result = withContext(Dispatchers.IO) {
-            val channel = session.createExecChannel(command)
-            channel.open().verify()
-            val inputStream = channel.invertedOut
-            inputStream.bufferedReader(Charset.forName(info.sshCharset)).use { it.readText() }
+        return withContext(Dispatchers.IO) {
+            try {
+                val channel = session.createExecChannel(command)
+                channel.open().verify()
+                val inputStream = channel.invertedOut
+                val result = inputStream.bufferedReader(Charset.forName(info.sshCharset)).use { it.readText() }
+                return@withContext Result.success(result)
+            } catch (t: Throwable) {
+                log.warn("创建ssh通道失败: ", t)
+                return@withContext Result.fail("创建ssh通道失败: ${t.message}")
+            }
         }
-
-        return Result.success(result)
     }
 
     override fun close() {
