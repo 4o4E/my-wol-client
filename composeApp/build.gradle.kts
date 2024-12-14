@@ -1,6 +1,7 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -70,8 +71,6 @@ kotlin {
             implementation(libs.sqlite.bundled)
             // ssh
             implementation(libs.sshd.core)
-            implementation(libs.sshd.common)
-            implementation(libs.sshd.putty)
         }
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)
@@ -83,7 +82,7 @@ kotlin {
 }
 
 room {
-    schemaDirectory("$projectDir/schemas")
+    schemaDirectory(provider { projectDir.resolve("schemas").path })
 }
 
 android {
@@ -103,9 +102,26 @@ android {
             excludes += "/META-INF/{DEPENDENCIES,LICENSE,NOTICE}"
         }
     }
+    signingConfigs {
+        register("release") {
+            storeFile = file(getProperty("storeFile"))
+            storePassword = getProperty("storePassword")
+            keyAlias = getProperty("keyAlias")
+            keyPassword = getProperty("keyPassword")
+        }
+    }
     buildTypes {
         getByName("release") {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                file("src/androidMain/proguard-rules.pro")
+            )
+        }
+        getByName("debug") {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
@@ -131,6 +147,32 @@ compose.desktop {
         }
     }
 }
+
+fun Project.getProperty(name: String) =
+    getPropertyOrNull(name) ?: error("Property $name not found")
+
+val Project.localPropertiesFile: File get() = project.rootProject.file("local.properties")
+
+fun Project.getLocalProperty(key: String): String? {
+    return if (localPropertiesFile.exists()) {
+        val properties = Properties()
+        localPropertiesFile.inputStream().buffered().use { input ->
+            properties.load(input)
+        }
+        properties.getProperty(key)
+    } else {
+        localPropertiesFile.createNewFile()
+        null
+    }
+}
+
+fun Project.getPropertyOrNull(name: String) =
+    getLocalProperty(name)
+        ?: System.getProperty(name)
+        ?: System.getenv(name)
+        ?: findProperty(name)?.toString()
+        ?: properties[name]?.toString()
+        ?: extensions.extraProperties.runCatching { get(name).toString() }.getOrNull()
 
 //configurations.all {
 //    resolutionStrategy {
