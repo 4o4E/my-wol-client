@@ -14,7 +14,7 @@ actual class WebsocketService {
             log.debug { "启动服务: id: $id, name: $name, address: $address, secret: $secret" }
             if (instance != null) return false
             instance = WebsocketService()
-            instance!!.start(address, id, name)
+            instance!!.start(address, id, name, secret)
             return true
         }
 
@@ -32,8 +32,8 @@ actual class WebsocketService {
     actual var handler: WebsocketHandler? = null
         private set
 
-    fun start(address: String, id: String, name: String) {
-        handler = WebsocketHandler(id, name, address)
+    fun start(address: String, id: String, name: String, secret: String?) {
+        handler = WebsocketHandler(id, name, address, secret)
     }
 
     fun stop() {

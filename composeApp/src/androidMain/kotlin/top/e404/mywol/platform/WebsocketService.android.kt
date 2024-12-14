@@ -74,7 +74,7 @@ actual class WebsocketService : Service() {
         val address = intent.getStringExtra("address")!!
         val secret = intent.getStringExtra("secret")!!
         log.debug { "启动服务: id: $id, name: $name, address: $address, secret: $secret" }
-        handler = WebsocketHandler(id, name, address)
+        handler = WebsocketHandler(id, name, address, secret)
         // 启动前台服务
         notification = NotificationCompat.Builder(ctx, channelId)
             .setContentTitle("wol远程连接服务")

@@ -105,6 +105,7 @@ class WebsocketHandler(
     val id: String,
     val name: String,
     val serverAddress: String,
+    val secret: String?
 ) {
     private val log = logger()
     private val wsUrl = "ws://${serverAddress}/ws"
@@ -208,6 +209,7 @@ class WebsocketHandler(
         httpClient.webSocket(wsUrl, {
             header("id", id)
             header("name", name)
+            if (!secret.isNullOrBlank()) header("Authorization", "Bearer $secret")
         }) {
             session = this
             log.debug { "完成websocket连接" }
