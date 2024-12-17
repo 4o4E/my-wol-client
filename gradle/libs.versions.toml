@@ -25,7 +25,7 @@ log4j-core = "2.20.0"
 sqlite = "2.5.0-alpha11"
 sshd = "2.10.0"
 material3Android = "1.3.1"
-mywol = "1.0.0"
+mywol = "1.1.0"
 documentfile = "1.0.1"
 
 [libraries]
