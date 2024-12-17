@@ -6,16 +6,29 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.room.RoomDatabase
 import com.russhwolf.settings.Settings
 import top.e404.mywol.dao.WolDatabase
+import top.e404.mywol.vm.Result
 import java.io.File
 
-interface Platform {
+expect object Platform {
+    /**
+     * 平台名字
+     */
     val name: String
 
-    fun save(content: String)
-    fun load(path: String): String
-}
+    /**
+     * 选择文件夹保存文件
+     *
+     * @return 保存的文件路径
+     */
+    suspend fun exportChooseDir(content: String): Result<String>
 
-expect fun getPlatform(): Platform
+    /**
+     * 选择文件导入数据
+     *
+     * @return 选择的文件路径
+     */
+    suspend fun importChooseFile(): Result<String>
+}
 
 expect fun getSettings(name: String): Settings
 

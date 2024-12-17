@@ -10,21 +10,20 @@ import androidx.room.RoomDatabase
 import com.russhwolf.settings.PreferencesSettings
 import com.russhwolf.settings.Settings
 import top.e404.mywol.dao.WolDatabase
+import top.e404.mywol.vm.Result
 import java.io.File
 
-class DesktopPlatform : Platform {
-    override val name: String = "Desktop"
+actual object Platform {
+    actual val name = "Desktop"
 
-    override fun save(content: String) {
+    actual suspend fun exportChooseDir(content: String): Result<String> {
         TODO("Not yet implemented")
     }
 
-    override fun load(path: String): String {
+    actual suspend fun importChooseFile(): Result<String> {
         TODO("Not yet implemented")
     }
 }
-
-actual fun getPlatform(): Platform = DesktopPlatform()
 
 private lateinit var factory: Settings.Factory
 

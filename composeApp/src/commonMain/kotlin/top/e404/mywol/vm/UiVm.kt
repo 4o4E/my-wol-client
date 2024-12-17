@@ -11,6 +11,7 @@ import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import top.e404.mywol.Router
 import top.e404.mywol.dao.Machine
 import top.e404.mywol.util.debug
@@ -36,7 +37,11 @@ object UiVm {
             return
         }
         currentRouter = router
-        controller.navigate(router.routerName)
+        ioScope.launch {
+            withContext(Dispatchers.Main) {
+                controller.navigate(router.routerName)
+            }
+        }
     }
 
     /**

@@ -4,12 +4,12 @@ import android.os.Build
 
 inline fun <T> ver(
     minVersion: Int,
-    before: () -> T,
-    after: () -> T
+    after: () -> T,
+    before: () -> T
 ): T = if (Build.VERSION.SDK_INT >= minVersion) {
-    before()
-} else {
     after()
+} else {
+    before()
 }
 
 inline fun <T> afterVer(

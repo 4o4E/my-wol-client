@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import top.e404.mywol.dao.Machine
@@ -85,5 +87,11 @@ object LocalVm : KoinComponent {
         } catch (t: Throwable) {
             MachineState.OFF
         }
+    }
+
+    suspend fun exportAll() = Json.encodeToString(ListSerializer(Machine.serializer()), machineRepository.listNormal())
+    suspend fun importAll(json: String) {
+        val list = Json.decodeFromString(ListSerializer(Machine.serializer()), json)
+        machineRepository.import(list)
     }
 }

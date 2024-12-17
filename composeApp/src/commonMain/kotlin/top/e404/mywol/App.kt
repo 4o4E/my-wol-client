@@ -85,7 +85,7 @@ fun App() {
                 ) {
                     NavHost(
                         navController = UiVm.controller,
-                        startDestination = Router.DEFAULT.routerName
+                        startDestination = UiVm.currentRouter.routerName
                     ) {
                         for (router in Router.entries) {
                             composable(router.routerName) { router.route() }
@@ -169,7 +169,6 @@ enum class Router(
     ;
 
     companion object {
-        val DEFAULT get() = LOCAL
         fun fromRoute(route: String) = entries.first { it.routerName == route }
     }
 

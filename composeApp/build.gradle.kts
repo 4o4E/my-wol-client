@@ -36,6 +36,7 @@ kotlin {
             implementation(libs.jmx)
             // preview
             implementation(libs.androidx.compose.ui.tooling.preview)
+            implementation(libs.androidx.documentfile)
         }
         commonMain.dependencies {
             implementation(compose.runtime)

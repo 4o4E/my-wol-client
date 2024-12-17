@@ -32,6 +32,9 @@
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="remoteMessaging"/>
+        <activity
+            android:name=".activity.CustomActivity"
+            android:exported="false" />
     </application>
 
 </manifest>

@@ -26,6 +26,7 @@ import kotlin.system.exitProcess
 class AndroidMain : ComponentActivity() {
     companion object {
         lateinit var appContext: Context
+        lateinit var mainActivity: AndroidMain
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,7 +34,7 @@ class AndroidMain : ComponentActivity() {
         val logsDir = applicationContext
             .externalCacheDir!!
             .resolve("logs")
-            .also{ it.mkdirs() }
+            .also { it.mkdirs() }
             .absolutePath
         AndroidLoggingConfigurator.configure(logsDir)
 
@@ -44,6 +45,7 @@ class AndroidMain : ComponentActivity() {
             defaultUEH?.uncaughtException(t, e)
         }
         appContext = applicationContext
+        mainActivity = this
 
         afterVer(Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
