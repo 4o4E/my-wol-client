@@ -123,11 +123,11 @@ fun Mine() {
         Platform.ImportChooseFile(importDeferred)
     }
 
-    var showExport by remember { mutableStateOf(0) }
+    var showExport by remember { mutableStateOf(false) }
     var exportDeferred by remember { mutableStateOf(CompletableDeferred<Result<String>>()) }
     var exportResult by remember { mutableStateOf("") }
-    if (showExport % 2 == 1) {
-        LaunchedEffect(showExport) {
+    if (showExport) {
+        LaunchedEffect(System.currentTimeMillis()) {
             exportDeferred = CompletableDeferred()
             UiVm.ioScope.launch {
                 exportDeferred.await().onSuccess {
@@ -135,7 +135,7 @@ fun Mine() {
                 }.onFail {
                     UiVm.showSnackbar(it)
                 }
-                showExport += 1
+                showExport = false
             }
         }
         Platform.ExportChooseDir(exportDeferred)
@@ -173,7 +173,7 @@ fun Mine() {
             Text(
                 "导出",
                 getModifier().clickable {
-                    showExport += 1
+                    showExport = true
                 },
             )
             HorizontalDivider()
