@@ -34,7 +34,7 @@ actual object Platform {
             contract = ActivityResultContracts.StartActivityForResult()
         ) launcher@{ result ->
             if (result.resultCode != RESULT_OK) {
-                deferred.complete(Result.fail("取消选择"))
+                deferred.complete(Result.fail("取消导出"))
                 return@launcher
             }
             val uri = result.data?.data ?: run {
@@ -95,7 +95,7 @@ actual object Platform {
                 deferred.complete(Result.success(json))
             }
         }
-        LaunchedEffect(Unit) {
+        LaunchedEffect(System.currentTimeMillis()) {
             filePickerLauncher.launch("application/json")
         }
     }

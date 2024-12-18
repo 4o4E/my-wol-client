@@ -14,6 +14,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -96,7 +97,7 @@ fun Mine() {
 
     var showImport by remember { mutableStateOf(false) }
     var confirmImport by remember { mutableStateOf(false) }
-    val importDeferred = remember { CompletableDeferred<Result<String>>() }
+    var importDeferred by remember { mutableStateOf(CompletableDeferred<Result<String>>()) }
     ConfirmDialog(
         showImport,
         "导入",
@@ -104,11 +105,13 @@ fun Mine() {
         {
             showImport = false
             confirmImport = true
+            importDeferred = CompletableDeferred()
             UiVm.ioScope.launch {
                 importDeferred.await().onSuccess {
                     LocalVm.importAll(it)
                     UiVm.showSnackbar("导入成功")
                     UiVm.navigate(Router.LOCAL)
+                    confirmImport = false
                 }.onFail {
                     UiVm.showSnackbar(it)
                 }
@@ -120,19 +123,22 @@ fun Mine() {
         Platform.ImportChooseFile(importDeferred)
     }
 
-    var showExport by remember { mutableStateOf(false) }
-    val exportDeferred = remember { CompletableDeferred<Result<String>>() }
+    var showExport by remember { mutableStateOf(0) }
+    var exportDeferred by remember { mutableStateOf(CompletableDeferred<Result<String>>()) }
     var exportResult by remember { mutableStateOf("") }
-    if (showExport) {
-        Platform.ExportChooseDir(exportDeferred)
-        UiVm.ioScope.launch {
-            exportDeferred.await().onSuccess {
-                exportResult = it
-            }.onFail {
-                UiVm.showSnackbar(it)
+    if (showExport % 2 == 1) {
+        LaunchedEffect(showExport) {
+            exportDeferred = CompletableDeferred()
+            UiVm.ioScope.launch {
+                exportDeferred.await().onSuccess {
+                    exportResult = it
+                }.onFail {
+                    UiVm.showSnackbar(it)
+                }
+                showExport += 1
             }
-            showExport = false
         }
+        Platform.ExportChooseDir(exportDeferred)
     }
     ConfirmDialog(
         exportResult != "",
@@ -167,7 +173,7 @@ fun Mine() {
             Text(
                 "导出",
                 getModifier().clickable {
-                    showExport = true
+                    showExport += 1
                 },
             )
             HorizontalDivider()
