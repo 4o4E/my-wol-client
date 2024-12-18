@@ -26,6 +26,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.unit.dp
 import com.russhwolf.settings.set
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import top.e404.mywol.Platform
@@ -34,6 +35,7 @@ import top.e404.mywol.appIcon
 import top.e404.mywol.ui.components.ConfirmDialog
 import top.e404.mywol.vm.LocalVm
 import top.e404.mywol.vm.RemoteVm
+import top.e404.mywol.vm.Result
 import top.e404.mywol.vm.SettingsVm
 import top.e404.mywol.vm.UiVm
 import top.e404.mywol.vm.WsState
@@ -93,18 +95,20 @@ fun Mine() {
 
 
     var showImport by remember { mutableStateOf(false) }
+    var confirmImport by remember { mutableStateOf(false) }
+    val importDeferred = remember { CompletableDeferred<Result<String>>() }
     ConfirmDialog(
         showImport,
         "导入",
         "导入数据后会覆盖本地现有数据, 确定继续?",
         {
             showImport = false
+            confirmImport = true
             UiVm.ioScope.launch {
-                val result = Platform.importChooseFile()
-                result.onSuccess {
+                importDeferred.await().onSuccess {
                     LocalVm.importAll(it)
-                    UiVm.navigate(Router.LOCAL)
                     UiVm.showSnackbar("导入成功")
+                    UiVm.navigate(Router.LOCAL)
                 }.onFail {
                     UiVm.showSnackbar(it)
                 }
@@ -112,14 +116,30 @@ fun Mine() {
         },
         { showImport = false }
     )
+    if (confirmImport) {
+        Platform.ImportChooseFile(importDeferred)
+    }
 
-    var exportResult by remember { mutableStateOf<String?>(null) }
+    var showExport by remember { mutableStateOf(false) }
+    val exportDeferred = remember { CompletableDeferred<Result<String>>() }
+    var exportResult by remember { mutableStateOf("") }
+    if (showExport) {
+        Platform.ExportChooseDir(exportDeferred)
+        UiVm.ioScope.launch {
+            exportDeferred.await().onSuccess {
+                exportResult = it
+            }.onFail {
+                UiVm.showSnackbar(it)
+            }
+            showExport = false
+        }
+    }
     ConfirmDialog(
-        exportResult != null,
+        exportResult != "",
         "导出",
-        "已保存到${exportResult}",
-        { exportResult = null },
-        { exportResult = null }
+        exportResult,
+        { exportResult = "" },
+        { exportResult = "" }
     )
 
     Column(
@@ -147,11 +167,7 @@ fun Mine() {
             Text(
                 "导出",
                 getModifier().clickable {
-                    UiVm.ioScope.launch {
-                        val result = Platform.exportChooseDir(LocalVm.exportAll())
-                        val msg = if (result.success) result.result else result.message
-                        UiVm.showSnackbar(msg)
-                    }
+                    showExport = true
                 },
             )
             HorizontalDivider()

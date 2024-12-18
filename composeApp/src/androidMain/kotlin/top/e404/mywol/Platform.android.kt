@@ -2,8 +2,11 @@ package top.e404.mywol
 
 import android.app.Activity.RESULT_OK
 import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.documentfile.provider.DocumentFile
@@ -13,7 +16,6 @@ import com.russhwolf.settings.Settings
 import com.russhwolf.settings.SharedPreferencesSettings
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
-import top.e404.mywol.activity.startActivity
 import top.e404.mywol.dao.WolDatabase
 import top.e404.mywol.util.debug
 import top.e404.mywol.vm.LocalVm
@@ -26,85 +28,76 @@ import java.util.Date
 actual object Platform {
     actual val name = "Android"
 
-    actual suspend fun exportChooseDir(content: String): Result<String> {
-        val deferred = CompletableDeferred<Result<String>>()
-        startActivity start@{
-            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) register@{ result ->
-                if (result.resultCode != RESULT_OK) {
-                    startActivity(Intent(this, AndroidMain::class.java))
-                    deferred.complete(Result.fail("取消选择"))
-                    return@register
-                }
-                val uri = result.data?.data ?: run {
-                    deferred.complete(Result.fail("取消导出"))
-                    return@register
-                }
-                AppLog.debug { "exportChooseDir: $uri" }
-                grantUriPermission(
-                    packageName,
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                )
-                contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                )
-                UiVm.ioScope.launch {
-                    @Suppress("SimpleDateFormat")
-                    val date = SimpleDateFormat("yyyy-MM-dd HH-mm-ss").format(Date())
-                    val docFile = DocumentFile.fromTreeUri(this@start, uri)!!
-                    val newFile = docFile.createFile("text/plain", "my-wol-export-${date}.json")
-                    val fileUri = newFile!!.uri
-                    val stream = contentResolver.openOutputStream(fileUri, "w") ?: run {
-                        deferred.complete(Result.fail("无效文件夹, 请重新选择"))
-                        return@launch
-                    }
-                    val json = LocalVm.exportAll()
-                    stream.bufferedWriter().use { it.write(json) }
-                    deferred.complete(Result.fail("导出完成, 文件位于: ${fileUri.path}"))
-                }
-                startActivity(Intent(this, AndroidMain::class.java))
+    @Composable
+    actual fun ExportChooseDir(deferred: CompletableDeferred<Result<String>>) {
+        val filePickerLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.StartActivityForResult()
+        ) launcher@{ result ->
+            if (result.resultCode != RESULT_OK) {
                 deferred.complete(Result.fail("取消选择"))
-            }.launch(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+                return@launcher
+            }
+            val uri = result.data?.data ?: run {
+                deferred.complete(Result.fail("取消导出"))
+                return@launcher
+            }
+            AppLog.debug { "exportChooseDir: $uri" }
+            AndroidMain.mainActivity.grantUriPermission(
+                AndroidMain.mainActivity.packageName,
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+            AndroidMain.mainActivity.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+            UiVm.ioScope.launch {
+                @Suppress("SimpleDateFormat")
+                val date = SimpleDateFormat("yyyy-MM-dd HH-mm-ss").format(Date())
+                val docFile = DocumentFile.fromTreeUri(AndroidMain.mainActivity, uri)!!
+                val newFile = docFile.createFile("application/json", "my-wol-export-${date}")
+                val fileUri = newFile!!.uri
+                val stream = AndroidMain.mainActivity.contentResolver.openOutputStream(fileUri, "w") ?: run {
+                    deferred.complete(Result.fail("无效文件夹, 请重新选择"))
+                    return@launch
+                }
+                val json = LocalVm.exportAll()
+                stream.bufferedWriter().use { it.write(json) }
+                deferred.complete(Result.success("导出完成, 文件位于: ${fileUri.path}"))
+            }
+        }
+        LaunchedEffect(Unit) {
+            filePickerLauncher.launch(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
             })
         }
-        return deferred.await()
     }
 
-    actual suspend fun importChooseFile(): Result<String> {
-        val deferred = CompletableDeferred<Result<String>>()
-        startActivity start@{
-            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) register@{ result ->
-                if (result.resultCode != RESULT_OK) {
-                    startActivity(Intent(this, AndroidMain::class.java))
-                    deferred.complete(Result.fail("取消选择"))
-                    return@register
-                }
-                val uri = result.data?.data ?: run {
+    @Composable
+    actual fun ImportChooseFile(deferred: CompletableDeferred<Result<String>>) {
+        val filePickerLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.GetContent()
+        ) launcher@{ uri: Uri? ->
+            if (uri == null) {
+                deferred.complete(Result.fail("取消导入"))
+                return@launcher
+            }
+            AndroidMain.mainActivity.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+            UiVm.ioScope.launch {
+                val stream = AndroidMain.mainActivity.contentResolver.openInputStream(uri) ?: run {
                     deferred.complete(Result.fail("文件不存在"))
-                    return@register
+                    return@launch
                 }
-                contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                )
-                UiVm.ioScope.launch {
-                    val stream = contentResolver.openInputStream(uri) ?: run {
-                        deferred.complete(Result.fail("文件不存在"))
-                        return@launch
-                    }
-                    val json = stream.bufferedReader().use(BufferedReader::readText)
-                    deferred.complete(Result.success(json))
-                }
-                startActivity(Intent(this, AndroidMain::class.java))
-                deferred.complete(Result.fail("取消选择"))
-            }.launch(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                addCategory(Intent.CATEGORY_OPENABLE)
-                type = "*/*"
-            })
+                val json = stream.bufferedReader().use(BufferedReader::readText)
+                deferred.complete(Result.success(json))
+            }
         }
-        return deferred.await()
+        LaunchedEffect(Unit) {
+            filePickerLauncher.launch("application/json")
+        }
     }
 }
 

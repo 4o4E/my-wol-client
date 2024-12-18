@@ -2,9 +2,11 @@
 
 package top.e404.mywol
 
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.room.RoomDatabase
 import com.russhwolf.settings.Settings
+import kotlinx.coroutines.CompletableDeferred
 import top.e404.mywol.dao.WolDatabase
 import top.e404.mywol.vm.Result
 import java.io.File
@@ -20,14 +22,16 @@ expect object Platform {
      *
      * @return 保存的文件路径
      */
-    suspend fun exportChooseDir(content: String): Result<String>
+    @Composable
+    fun ExportChooseDir(deferred: CompletableDeferred<Result<String>>)
 
     /**
      * 选择文件导入数据
      *
      * @return 选择的文件路径
      */
-    suspend fun importChooseFile(): Result<String>
+    @Composable
+    fun ImportChooseFile(deferred: CompletableDeferred<Result<String>>)
 }
 
 expect fun getSettings(name: String): Settings

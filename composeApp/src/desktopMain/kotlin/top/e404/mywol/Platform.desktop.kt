@@ -9,6 +9,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.russhwolf.settings.PreferencesSettings
 import com.russhwolf.settings.Settings
+import kotlinx.coroutines.CompletableDeferred
 import top.e404.mywol.dao.WolDatabase
 import top.e404.mywol.vm.Result
 import java.io.File
@@ -16,11 +17,13 @@ import java.io.File
 actual object Platform {
     actual val name = "Desktop"
 
-    actual suspend fun exportChooseDir(content: String): Result<String> {
+    @Composable
+    actual fun ExportChooseDir(deferred: CompletableDeferred<Result<String>>) {
         TODO("Not yet implemented")
     }
 
-    actual suspend fun importChooseFile(): Result<String> {
+    @Composable
+    actual fun ImportChooseFile(deferred: CompletableDeferred<Result<String>>) {
         TODO("Not yet implemented")
     }
 }
