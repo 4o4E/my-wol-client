@@ -12,7 +12,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -35,6 +40,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
@@ -292,16 +298,26 @@ fun EditMachine() {
         )
         Spacer(Modifier.height(10.dp))
         val transformation = remember { PasswordVisualTransformation() }
+        var showSecret by remember { mutableStateOf(false) }
         OutlinedTextField(
             label = { Text(text = valueWithError("ssh${sshSecretType.display}", sshSecretValueError)) },
             modifier = Modifier,
             value = sshSecretValue,
-            visualTransformation = transformation,
-            maxLines = 1,
+            visualTransformation = if (showSecret) VisualTransformation.None else transformation,
+            maxLines = if (sshSecretType == SshSecretType.PASSWORD) 1 else Int.MAX_VALUE,
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Ascii,
                 imeAction = ImeAction.Next
             ),
+            trailingIcon = {
+                IconButton({ showSecret = !showSecret }) {
+                    Icon(
+                        if (showSecret) Icons.Outlined.VisibilityOff
+                        else Icons.Outlined.Visibility,
+                        contentDescription = null
+                    )
+                }
+            },
             isError = sshSecretValueError != null,
             onValueChange = {
                 sshSecretValue = it
