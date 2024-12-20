@@ -52,6 +52,7 @@ object LocalVm : KoinComponent {
         machineRepository.update(machine)
     }
 
+    @Volatile
     var machineState = mapOf<String, MachineState>()
     private lateinit var machineStateSyncJob: Job
     fun startSync() {
@@ -66,12 +67,12 @@ object LocalVm : KoinComponent {
                 val changed = stateMap.entries.filter { (machine, state) ->
                     machineState[machine.id] != state
                 }
+                machineState = stateMap.entries.associate { it.key.id to it.value }
                 if (changed.isNotEmpty()) {
                     log.debug { "sendChange" }
                     RemoteVm.syncMachines()
                 }
-                machineState = stateMap.entries.associate { it.key.id to it.value }
-                delay(1000)
+                delay(3000)
             }
         }
     }
