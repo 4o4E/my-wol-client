@@ -398,11 +398,9 @@ data class LocalMachineWrapper(val machine: Machine) : MachineWrapper {
         return Result.success(Unit)
     }
 
-    override suspend fun ssh(command: String) = SshVm.getOrCreate(machine).apply {
-        start()
-    }.exec(command)
+    override suspend fun ssh(command: String) = SshVm.getOrCreate(machine).exec(command)
 
-    override suspend fun shutdown() = SshVm.getOrCreate(machine).apply { start() }.use {
+    override suspend fun shutdown() = SshVm.getOrCreate(machine).use {
         it.exec(machine.sshShutdownCommand)
     }
 }

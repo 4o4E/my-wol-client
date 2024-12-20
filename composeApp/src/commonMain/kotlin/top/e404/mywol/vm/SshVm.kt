@@ -47,16 +47,17 @@ class SshHandler(private val info: Machine) : Closeable {
     val isStart = mutableStateOf(false)
     val history = mutableStateOf(listOf<SshHistory>())
     private var session: ClientSession? = null
-    suspend fun start(background: Boolean = false) {
-        if (client.isStarted) return
-        client.start()
-        sshScope.async {
+    private var initialized = false
+    private suspend fun start(background: Boolean = false) {
+        if (!client.isStarted) client.start()
+        if (initialized) return
+        initialized = sshScope.async {
             val feature = client.connect(info.sshUsername, info.deviceHost, info.sshPort)
             try {
-                feature.verify(10, TimeUnit.SECONDS)
+                feature.verify(3, TimeUnit.SECONDS)
             } catch (t: Throwable) {
                 log.warn(t) { "ssh连接失败: " }
-                if (!background) UiVm.showSnackbar("SSH连接成功: ${t.message}")
+                if (!background) UiVm.showSnackbar("SSH连接失败: ${t.message}")
                 return@async false
             }
             val session = feature.session
@@ -70,7 +71,10 @@ class SshHandler(private val info: Machine) : Closeable {
                         NamedResource.ofName("ssh-rsa"),
                         info.sshSecretValue.byteInputStream(),
                         null
-                    ).first()
+                    ).firstOrNull() ?: run {
+                        UiVm.showSnackbar("SSH密钥加载失败")
+                        return@async false
+                    }
                     session.addPublicKeyIdentity(keyPair)
                 }
             }
@@ -81,7 +85,7 @@ class SshHandler(private val info: Machine) : Closeable {
     }
 
     suspend fun exec(command: String): Result<String> {
-        if (session == null) start()
+        if (!initialized) start()
         val session = session ?: return Result.fail("ssh未连接")
         return withContext(Dispatchers.IO) {
             try {

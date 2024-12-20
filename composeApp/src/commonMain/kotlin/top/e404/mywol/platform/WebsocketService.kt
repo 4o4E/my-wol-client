@@ -290,7 +290,6 @@ class WebsocketHandler(
                     return
                 }
                 val handler = SshVm.getOrCreate(machine)
-                handler.start()
                 val result = handler.exec(s2cData.command)
                 val packet =
                     if (result.success) WsSshC2s(true, result.result, s2cData.id)
@@ -306,7 +305,6 @@ class WebsocketHandler(
                     return
                 }
                 val handler = SshVm.getOrCreate(machine)
-                handler.start()
                 val result = handler.exec(machine.sshShutdownCommand)
                 val packet =
                     if (result.success) WsSshShutdownC2s(true, result.result, s2cData.id)
