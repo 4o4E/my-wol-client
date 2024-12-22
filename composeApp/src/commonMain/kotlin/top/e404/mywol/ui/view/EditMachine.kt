@@ -1,5 +1,6 @@
 package top.e404.mywol.ui.view
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -53,6 +54,7 @@ import top.e404.mywol.dao.validateMachine
 import top.e404.mywol.util.valueWithError
 import top.e404.mywol.vm.LocalVm
 import top.e404.mywol.vm.RemoteVm
+import top.e404.mywol.vm.ScheduleVm
 import top.e404.mywol.vm.UiVm
 import java.util.UUID
 
@@ -83,6 +85,9 @@ fun EditMachine() {
     var sshCharset by remember { mutableStateOf(TextFieldValue(machine?.sshCharset ?: "")) }
     var sshCharsetError by remember { mutableStateOf<String?>(null) }
     var sshShutdownCommand by remember { mutableStateOf(TextFieldValue(machine?.sshShutdownCommand ?: "")) }
+
+    var cron by remember { mutableStateOf(TextFieldValue(machine?.cron ?: "")) }
+    var cronError by remember { mutableStateOf<String?>(null) }
 
     fun isSshEnabled() = sshPort.text.isNotBlank()
             || sshUsername.text.isNotBlank()
@@ -125,6 +130,7 @@ fun EditMachine() {
                     check(sshSecretValue.text.validateNotBlank()) { sshSecretValueError = it }
                     check(sshCharset.text.validateCharset()) { sshCharsetError = it }
                 }
+                check(cron.text.validateCron()) { cronError = it }
                 if (hasError) return@onClick
             }
 
@@ -144,13 +150,14 @@ fun EditMachine() {
                     sshCharset.text,
                     sshShutdownCommand.text,
 
-                    System.currentTimeMillis()
+                    cron.text,
+                    machine?.time ?: System.currentTimeMillis()
                 )
                 if (isAdd) LocalVm.save(new)
                 else LocalVm.update(new)
                 withContext(Dispatchers.Main) {
                     keyboard?.hide()
-                    if (isAdd) UiVm.showAdd.value = false
+                    if (isAdd) UiVm.showAddMachine.value = false
                     else machine = null
                     UiVm.showSnackbar("已${if (isAdd) "添加" else "保存"}")
                 }
@@ -298,32 +305,52 @@ fun EditMachine() {
         )
         Spacer(Modifier.height(10.dp))
         val transformation = remember { PasswordVisualTransformation() }
-        var showSecret by remember { mutableStateOf(false) }
-        OutlinedTextField(
-            label = { Text(text = valueWithError("ssh${sshSecretType.display}", sshSecretValueError)) },
-            modifier = Modifier,
-            value = sshSecretValue,
-            visualTransformation = if (showSecret) VisualTransformation.None else transformation,
-            maxLines = if (sshSecretType == SshSecretType.PASSWORD) 1 else Int.MAX_VALUE,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Ascii,
-                imeAction = ImeAction.Next
-            ),
-            trailingIcon = {
-                IconButton({ showSecret = !showSecret }) {
-                    Icon(
-                        if (showSecret) Icons.Outlined.VisibilityOff
-                        else Icons.Outlined.Visibility,
-                        contentDescription = null
-                    )
+        if (sshSecretType == SshSecretType.PASSWORD) {
+            var showSecret by remember { mutableStateOf(false) }
+            OutlinedTextField(
+                label = { Text(text = valueWithError("ssh${sshSecretType.display}", sshSecretValueError)) },
+                value = sshSecretValue,
+                visualTransformation = if (showSecret) VisualTransformation.None else transformation,
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Ascii,
+                    imeAction = ImeAction.Next
+                ),
+                trailingIcon = {
+                    IconButton({ showSecret = !showSecret }) {
+                        Icon(
+                            if (showSecret) Icons.Outlined.VisibilityOff
+                            else Icons.Outlined.Visibility,
+                            contentDescription = null
+                        )
+                    }
+                },
+                isError = sshSecretValueError != null,
+                onValueChange = {
+                    sshSecretValue = it
+                    sshSecretValueError = validate { it.text.validateNotBlank() }
                 }
-            },
-            isError = sshSecretValueError != null,
-            onValueChange = {
-                sshSecretValue = it
-                sshSecretValueError = validate { it.text.validateNotBlank() }
+            )
+        } else {
+            val textScrollState = rememberScrollState()
+            Row(Modifier.horizontalScroll(textScrollState)) {
+                OutlinedTextField(
+                    label = { Text(text = valueWithError("ssh${sshSecretType.display}", sshSecretValueError)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    value = sshSecretValue,
+                    maxLines = Int.MAX_VALUE,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Ascii,
+                        imeAction = ImeAction.Next
+                    ),
+                    isError = sshSecretValueError != null,
+                    onValueChange = {
+                        sshSecretValue = it
+                        sshSecretValueError = validate { it.text.validateNotBlank() }
+                    }
+                )
             }
-        )
+        }
         Spacer(Modifier.height(10.dp))
         OutlinedTextField(
             label = { Text(text = valueWithError("ssh字符集", sshCharsetError)) },
@@ -351,10 +378,27 @@ fun EditMachine() {
             placeholder = { Text("poweroff / shutdown /p") },
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Ascii,
+                imeAction = ImeAction.Next
+            ),
+            onValueChange = { sshShutdownCommand = it }
+        )
+        Spacer(Modifier.height(20.dp))
+        OutlinedTextField(
+            label = { Text(text = valueWithError("定时开机", cronError)) },
+            isError = cronError != null,
+            modifier = Modifier,
+            value = cron,
+            maxLines = 1,
+            placeholder = { Text("0 0 18 * * ?") },
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number,
                 imeAction = ImeAction.Done
             ),
             keyboardActions = KeyboardActions(onDone = { onDone() }),
-            onValueChange = { sshShutdownCommand = it }
+            onValueChange = {
+                cron = it
+                cronError = validate { it.text.validateCron() }
+            }
         )
         Spacer(Modifier.height(10.dp))
 
@@ -371,6 +415,7 @@ fun EditMachine() {
                     scope.launch(Dispatchers.IO) {
                         LocalVm.remove(machine!!.id)
                         RemoteVm.syncMachines()
+                        ScheduleVm.start()
                         machine = null
                     }
                 }) { Text("删除") }
@@ -379,7 +424,7 @@ fun EditMachine() {
             Button({
                 scope.launch(Dispatchers.IO) {
                     if (!isAdd) machine = null
-                    else UiVm.showAdd.value = false
+                    else UiVm.showAddMachine.value = false
                 }
             }) { Text("取消") }
         }

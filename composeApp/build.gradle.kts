@@ -72,6 +72,8 @@ kotlin {
             implementation(libs.sqlite.bundled)
             // ssh
             implementation(libs.sshd.core)
+            // cron-utils
+            implementation(libs.cron.utils)
         }
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)

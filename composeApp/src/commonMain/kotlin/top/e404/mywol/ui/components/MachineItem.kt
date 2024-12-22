@@ -70,6 +70,7 @@ import top.e404.mywol.model.WolMachine
 import top.e404.mywol.vm.LocalVm
 import top.e404.mywol.vm.RemoteVm
 import top.e404.mywol.vm.Result
+import top.e404.mywol.vm.ScheduleVm
 import top.e404.mywol.vm.SshVm
 import top.e404.mywol.vm.UiVm
 import java.time.Instant
@@ -153,7 +154,8 @@ fun MachineItem(machine: MachineWrapper) {
     ) {
         val scope = rememberCoroutineScope()
         var editMachine by remember { UiVm.editMachine }
-        var time by remember { mutableStateOf("") }
+        var created by remember { mutableStateOf("") }
+        var scheduled by remember { mutableStateOf("") }
         Column(
             Modifier
                 .fillMaxWidth()
@@ -224,8 +226,12 @@ fun MachineItem(machine: MachineWrapper) {
                     }
                 }
             }
+            if (scheduled.isNotBlank()) {
+                Spacer(Modifier.height(5.dp))
+                Text("下次计划启动于$scheduled")
+            }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("添加于$time")
+                Text("添加于$created")
                 if (machine.isSshConfigured) {
                     Spacer(Modifier.weight(1F))
                     if (machine is LocalMachineWrapper) {
@@ -325,14 +331,30 @@ fun MachineItem(machine: MachineWrapper) {
         LaunchedEffect(Unit) {
             while (true) {
                 val (formatted, delay) = formatTime(machine.time)
-                time = formatted
+                created = formatted
+                delay(delay)
+            }
+        }
+        LaunchedEffect(Unit) {
+            while (true) {
+                val next = ScheduleVm.scheduleMap[machine.id]
+                if (next == null) {
+                    scheduled = ""
+                    delay(10000)
+                    continue
+                }
+                val (formatted, delay) = formatTime(next
+                    .atZone(ZoneId.systemDefault())
+                    .toEpochSecond() * 1000)
+                scheduled = formatted
                 delay(delay)
             }
         }
     }
 }
 
-internal val displayFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("M月d日")
+internal val mdFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("M月d日")
+internal val fullDisplayFormatter = DateTimeFormatter.ofPattern("yy年M约d日 H时m分s秒")
 
 /**
  * 格式化时间
@@ -342,6 +364,16 @@ internal val displayFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("
 internal fun formatTime(time: Long): Pair<String, Long> {
     val now = System.currentTimeMillis()
     val diff = now - time
+    if (diff < 0) return when {
+        diff > -60 * 1000 -> "${(-diff / 1000)}秒后" to 1000
+        diff > -60 * 60 * 1000 -> "${(-diff / (60 * 1000))}分钟后" to 60 * 1000
+        diff > -24 * 60 * 60 * 1000 -> "${(-diff / (60 * 60 * 1000))}小时后" to 60 * 60 * 1000
+        diff > -7 * 24 * 60 * 60 * 1000 -> "${(diff / (24 * 60 * 60 * 1000))}天后" to 24 * 60 * 60 * 1000
+        else -> Instant.ofEpochSecond(time)
+            .atZone(ZoneId.systemDefault())
+            .toLocalDateTime()
+            .let(mdFormatter::format) to 24 * 60 * 60 * 1000
+    }
     return when {
         diff < 60 * 1000 -> "${(diff / 1000)}秒前" to 1000
         diff < 60 * 60 * 1000 -> "${(diff / (60 * 1000))}分钟前" to 60 * 1000
@@ -350,7 +382,7 @@ internal fun formatTime(time: Long): Pair<String, Long> {
         else -> Instant.ofEpochSecond(time)
             .atZone(ZoneId.systemDefault())
             .toLocalDateTime()
-            .let(displayFormatter::format) to 24 * 60 * 60 * 1000
+            .let(mdFormatter::format) to 24 * 60 * 60 * 1000
     }
 }
 

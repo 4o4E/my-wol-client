@@ -10,6 +10,7 @@ import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.Serializable
 import top.e404.mywol.util.sendWolPacket
+import top.e404.mywol.vm.ScheduleVm
 import java.nio.charset.Charset
 
 /**
@@ -46,6 +47,8 @@ data class Machine(
     var sshSecretValue: String,
     var sshCharset: String,
     var sshShutdownCommand: String,
+
+    var cron: String,
 
     var time: Long,
 ) {
@@ -93,6 +96,12 @@ interface MachineValidate {
         runCatching { Charset.forName(this) }.isFailure -> "无效字符集"
         else -> null
     }
+
+    fun String.validateCron() = when {
+        isBlank() -> null
+        !ScheduleVm.checkCron(this) -> "格式错误"
+        else -> null
+    }.also { println(it) }
 }
 
 val validate = object : MachineValidate {}

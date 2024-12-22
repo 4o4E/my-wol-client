@@ -6,15 +6,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.WifiTethering
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.WifiTethering
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -23,19 +20,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import kotlinx.coroutines.delay
-import top.e404.mywol.ui.view.EditMachine
 import top.e404.mywol.ui.view.Local
 import top.e404.mywol.ui.view.Mine
 import top.e404.mywol.ui.view.Remote
@@ -50,7 +42,6 @@ fun App() {
     val colorScheme =
         if (isSystemInDarkTheme()) darkColorScheme()
         else lightColorScheme()
-    var showAdd by remember { UiVm.showAdd }
     LaunchedEffect(Unit) {
         UiVm.isDebug.value = SettingsVm.local.getBoolean("isDebug", false)
     }
@@ -95,33 +86,6 @@ fun App() {
             },
             snackbarHost = {
                 SnackbarHost(UiVm.globalSnackbarHostState)
-            },
-            floatingActionButton = {
-                if (showAdd) {
-                    val modalBottomSheetState = rememberModalBottomSheetState(true) { true }
-                    ModalBottomSheet(
-                        sheetState = modalBottomSheetState,
-                        modifier = Modifier.fillMaxSize(),
-                        onDismissRequest = {
-                            showAdd = false
-                        }
-                    ) {
-                        EditMachine()
-                    }
-                    return@Scaffold
-                }
-                if (UiVm.currentRouter == Router.LOCAL) {
-                    FloatingActionButton(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                        onClick = { showAdd = true }
-                    ) {
-                        Icon(
-                            Icons.Filled.Add,
-                            contentDescription = null
-                        )
-                    }
-                }
             }
         )
     }

@@ -21,6 +21,7 @@ import top.e404.mywol.util.getCommonKoinModule
 import top.e404.mywol.util.logger
 import top.e404.mywol.vm.LocalVm
 import top.e404.mywol.vm.RemoteVm
+import top.e404.mywol.vm.ScheduleVm
 import kotlin.system.exitProcess
 
 class AndroidMain : ComponentActivity() {
@@ -69,6 +70,7 @@ class AndroidMain : ComponentActivity() {
         }
 
         LocalVm.startSync()
+        ScheduleVm.start()
 
         System.setProperty("user.home", applicationContext.applicationInfo.dataDir)
 

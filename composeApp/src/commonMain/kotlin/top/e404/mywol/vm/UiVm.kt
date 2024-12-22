@@ -65,7 +65,7 @@ object UiVm {
 
     val globalSnackbarHostState = SnackbarHostState()
 
-    val showAdd = mutableStateOf(false)
+    val showAddMachine = mutableStateOf(false)
     val editMachine = mutableStateOf<Machine?>(null)
     val isDebug = mutableStateOf(false)
     val debug get() = isDebug.value
