@@ -28,6 +28,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import top.e404.mywol.model.MachineState
+import top.e404.mywol.model.SshResult
 import top.e404.mywol.model.WolMachine
 import top.e404.mywol.model.WsC2sData
 import top.e404.mywol.model.WsS2cData
@@ -285,30 +286,30 @@ class WebsocketHandler(
             is WsSshS2c -> {
                 val machine = LocalVm.itemList.value.find { it.id == s2cData.machineId }
                 if (machine == null) {
-                    val packet = WsSshC2s(false, "没有该机器", s2cData.id)
+                    val packet = WsSshC2s(false, "没有该机器", null, s2cData.id)
                     sendPacket(packet)
                     return
                 }
                 val handler = SshVm.getOrCreate(machine)
                 val result = handler.exec(s2cData.command)
                 val packet =
-                    if (result.success) WsSshC2s(true, result.result, s2cData.id)
-                    else WsSshC2s(false, result.message, s2cData.id)
+                    if (result.success) WsSshC2s(true, "", result.result, s2cData.id)
+                    else WsSshC2s(false, result.message, null, s2cData.id)
                 sendPacket(packet)
             }
 
             is WsSshShutdownS2c -> {
                 val machine = LocalVm.itemList.value.find { it.id == s2cData.machineId }
                 if (machine == null) {
-                    val packet = WsSshC2s(false, "没有该机器", s2cData.id)
+                    val packet = WsSshC2s(false, "没有该机器", null, s2cData.id)
                     sendPacket(packet)
                     return
                 }
                 val handler = SshVm.getOrCreate(machine)
                 val result = handler.exec(machine.sshShutdownCommand)
                 val packet =
-                    if (result.success) WsSshShutdownC2s(true, result.result, s2cData.id)
-                    else WsSshShutdownC2s(false, result.message, s2cData.id)
+                    if (result.success) WsSshShutdownC2s(true, "", result.result, s2cData.id)
+                    else WsSshShutdownC2s(false, result.message, null, s2cData.id)
                 sendPacket(packet)
             }
         }
@@ -328,7 +329,7 @@ class WebsocketHandler(
         else Result.fail(response.bodyAsText())
     }
 
-    suspend fun sendSshReq(clientId: String, machineId: String, command: String): Result<String> {
+    suspend fun sendSshReq(clientId: String, machineId: String, command: String): Result<SshResult> {
         log.debug { "发送请求" }
         val response = try {
             httpClient.post("http://$serverAddress/ssh") {
@@ -340,11 +341,12 @@ class WebsocketHandler(
             return Result.fail(e.message ?: "发送ssh请求失败")
         }
         log.debug { "接收响应" }
-        return if (response.status == HttpStatusCode.OK) Result.success(response.bodyAsText())
-        else Result.fail(response.bodyAsText())
+        val body = response.bodyAsText()
+        return if (response.status == HttpStatusCode.OK) Result.success(Json.decodeFromString(SshResult.serializer(), body))
+        else Result.fail(body)
     }
 
-    suspend fun sendSshShutdown(clientId: String, machineId: String): Result<String> {
+    suspend fun sendSshShutdown(clientId: String, machineId: String): Result<SshResult> {
         log.debug { "发送请求" }
         val response = try {
             httpClient.post("http://$serverAddress/ssh/shutdown") {
@@ -356,8 +358,9 @@ class WebsocketHandler(
             return Result.fail(e.message ?: "发送ssh请求失败")
         }
         log.debug { "接收响应" }
-        return if (response.status == HttpStatusCode.OK) Result.success(response.bodyAsText())
-        else Result.fail(response.bodyAsText())
+        val body = response.bodyAsText()
+        return if (response.status == HttpStatusCode.OK) Result.success(Json.decodeFromString(SshResult.serializer(), body))
+        else Result.fail(body)
     }
 
     fun close() {

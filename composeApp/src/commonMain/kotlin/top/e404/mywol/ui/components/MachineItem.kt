@@ -1,5 +1,6 @@
 package top.e404.mywol.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
@@ -9,14 +10,15 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.filled.Circle
@@ -65,6 +67,7 @@ import kotlinx.coroutines.launch
 import top.e404.mywol.dao.Machine
 import top.e404.mywol.model.MachineState
 import top.e404.mywol.model.SshHistory
+import top.e404.mywol.model.SshResult
 import top.e404.mywol.model.WolClient
 import top.e404.mywol.model.WolMachine
 import top.e404.mywol.vm.LocalVm
@@ -235,18 +238,17 @@ fun MachineItem(machine: MachineWrapper) {
                 if (machine.isSshConfigured) {
                     Spacer(Modifier.weight(1F))
                     if (machine is LocalMachineWrapper) {
-                        val handler = SshVm.handlers[machine.id]
-                        if (handler != null && handler.isStart.value) {
-                            val isStart by handler.isStart
-                            if (isStart) IconButton({
-                                handler.history.value = emptyList()
-                                SshVm.close(machine.id)
-                            }) {
-                                Icon(
-                                    Icons.Outlined.Close,
-                                    contentDescription = null
-                                )
-                            }
+                        val handler = SshVm.getOrCreate(machine.machine)
+                        val isStart by handler.isStart
+                        if (isStart) IconButton({
+                            handler.history.value = emptyList()
+                            SshVm.close(machine.id)
+                            showSsh = false
+                        }) {
+                            Icon(
+                                Icons.Outlined.Close,
+                                contentDescription = null
+                            )
                         }
                     }
                     IconButton({ showSsh = !showSsh }) {
@@ -259,72 +261,11 @@ fun MachineItem(machine: MachineWrapper) {
                 }
             }
             if (UiVm.debug) Text(machine.id)
-            if (showSsh) {
-                val scrollState = rememberScrollState()
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(5.dp))
-                ) {
-                    LazyColumn(
-                        Modifier
-                            .height(300.dp)
-                            .horizontalScroll(scrollState)
-                            .padding(10.dp)
-                    ) {
-                        val histories by machine.sshHistories
-                        items(histories.size) { index ->
-                            val history = histories[index]
-                            Text(
-                                history.command,
-                                color = Color(0xFFA8CD89),
-                                fontSize = 12.sp,
-                                lineHeight = TextUnit(12f, TextUnitType.Sp),
-                                overflow = TextOverflow.Clip
-                            )
-                            Text(
-                                history.result.removeSuffix("\n"),
-                                fontSize = 12.sp,
-                                lineHeight = TextUnit(12f, TextUnitType.Sp),
-                                overflow = TextOverflow.Clip
-                            )
-                        }
-                    }
+            AnimatedVisibility(showSsh) {
+                Column {
+                    SshItem(machine)
+                    Spacer(Modifier.height(10.dp))
                 }
-                var command by remember { mutableStateOf("") }
-                Spacer(Modifier.height(10.dp))
-                var sending by remember { mutableStateOf(false) }
-                val onSend = onSend@{
-                    if (command.isBlank()) return@onSend
-                    sending = true
-                    UiVm.ioScope.launch {
-                        val result = machine.ssh(command)
-                        if (result.success) {
-                            machine.sshHistories.value += SshHistory(command, result.result)
-                            command = ""
-                        } else UiVm.showSnackbar("SSH执行失败: ${result.message}")
-                        sending = false
-                    }
-                }
-                OutlinedTextField(
-                    command,
-                    { command = it },
-                    Modifier.fillMaxWidth(),
-                    maxLines = 1,
-                    enabled = !sending,
-                    placeholder = { Text("输入并发送") },
-                    trailingIcon = {
-                        if (sending) CircularProgressIndicator(Modifier.size(24.dp))
-                        else IconButton({ onSend() }) {
-                            Icon(Icons.AutoMirrored.Outlined.Send, contentDescription = null)
-                        }
-                    },
-                    keyboardActions = KeyboardActions(onSend = { onSend() }),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send)
-                )
-                Spacer(Modifier.height(10.dp))
-            } else {
-                Spacer(Modifier.height(5.dp))
             }
         }
 
@@ -343,14 +284,92 @@ fun MachineItem(machine: MachineWrapper) {
                     delay(10000)
                     continue
                 }
-                val (formatted, delay) = formatTime(next
-                    .atZone(ZoneId.systemDefault())
-                    .toEpochSecond() * 1000)
+                val (formatted, delay) = formatTime(
+                    next
+                        .atZone(ZoneId.systemDefault())
+                        .toEpochSecond() * 1000
+                )
                 scheduled = formatted
                 delay(delay)
             }
         }
     }
+}
+
+@Composable
+fun SshItem(machine: MachineWrapper) = Column {
+    val scrollState = rememberScrollState()
+    val histories by machine.sshHistories
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(5.dp))
+    ) {
+        Column(
+            Modifier
+                .heightIn(72.dp, 360.dp)
+                .verticalScroll(rememberScrollState())
+                .horizontalScroll(scrollState)
+                .padding(10.dp)
+        ) {
+            for (history in histories) {
+                val sshResult = history.result
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        modifier = Modifier.align(Alignment.CenterVertically).size(10.dp),
+                        imageVector = Icons.Filled.Circle,
+                        contentDescription = null,
+                        tint = Color(if (sshResult.success) 0xFFA8CD89 else 0xFFF9C0AB)
+                    )
+                    Spacer(Modifier.width(5.dp))
+                    Text(
+                        history.command,
+                        fontSize = 12.sp,
+                        lineHeight = TextUnit(14f, TextUnitType.Sp),
+                        overflow = TextOverflow.Clip
+                    )
+                }
+                Text(
+                    sshResult.result.removeSuffix("\n"),
+                    color = if (sshResult.success) Color.Unspecified else Color(0xFFF9C0AB),
+                    fontSize = 12.sp,
+                    lineHeight = TextUnit(14f, TextUnitType.Sp),
+                    overflow = TextOverflow.Clip
+                )
+            }
+        }
+    }
+    Spacer(Modifier.height(10.dp))
+    var command by remember { mutableStateOf("") }
+    var sending by remember { mutableStateOf(false) }
+    val onSend = onSend@{
+        if (command.isBlank()) return@onSend
+        sending = true
+        UiVm.ioScope.launch {
+            val result = machine.ssh(command)
+            if (result.success) {
+                machine.sshHistories.value += SshHistory(command, result.result)
+                command = ""
+            } else UiVm.showSnackbar("SSH执行失败: ${result.message}")
+            sending = false
+        }
+    }
+    OutlinedTextField(
+        command,
+        { command = it },
+        Modifier.fillMaxWidth(),
+        maxLines = 1,
+        enabled = !sending,
+        placeholder = { Text("输入并发送") },
+        trailingIcon = {
+            if (sending) CircularProgressIndicator(Modifier.size(24.dp))
+            else IconButton({ onSend() }) {
+                Icon(Icons.AutoMirrored.Outlined.Send, contentDescription = null)
+            }
+        },
+        keyboardActions = KeyboardActions(onSend = { onSend() }),
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send)
+    )
 }
 
 internal val mdFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("M月d日")
@@ -389,8 +408,7 @@ internal fun formatTime(time: Long): Pair<String, Long> {
 @Composable
 internal fun RowScope.StateIcon(state: MachineState) {
     Icon(
-        modifier = Modifier
-            .align(Alignment.CenterVertically),
+        modifier = Modifier.align(Alignment.CenterVertically),
         imageVector = Icons.Filled.Circle,
         contentDescription = null,
         tint = when (state) {
@@ -411,8 +429,8 @@ interface MachineWrapper {
     val sshHistories: MutableState<List<SshHistory>>
 
     suspend fun wol(): Result<Unit>
-    suspend fun ssh(command: String): Result<String>
-    suspend fun shutdown(): Result<String>
+    suspend fun ssh(command: String): Result<SshResult>
+    suspend fun shutdown(): Result<SshResult>
 }
 
 data class LocalMachineWrapper(val machine: Machine) : MachineWrapper {

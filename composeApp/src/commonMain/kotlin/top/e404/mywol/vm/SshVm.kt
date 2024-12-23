@@ -16,6 +16,7 @@ import org.apache.sshd.common.util.security.SecurityUtils
 import top.e404.mywol.dao.Machine
 import top.e404.mywol.dao.SshSecretType
 import top.e404.mywol.model.SshHistory
+import top.e404.mywol.model.SshResult
 import top.e404.mywol.util.logger
 import top.e404.mywol.util.warn
 import java.io.Closeable
@@ -57,6 +58,9 @@ class SshHandler(private val info: Machine) : Closeable {
                 feature.verify(3, TimeUnit.SECONDS)
             } catch (t: Throwable) {
                 log.warn(t) { "ssh连接失败: " }
+                // 连接失败后重新初始化链接
+                session?.runCatching { close() }
+                initialized = false
                 if (!background) UiVm.showSnackbar("SSH连接失败: ${t.message}")
                 return@async false
             }
@@ -84,16 +88,17 @@ class SshHandler(private val info: Machine) : Closeable {
         }.await()
     }
 
-    suspend fun exec(command: String): Result<String> {
-        if (!initialized) start()
+    suspend fun exec(command: String): Result<SshResult> {
+        start()
         val session = session ?: return Result.fail("ssh未连接")
         return withContext(Dispatchers.IO) {
             try {
                 val channel = session.createExecChannel(command)
                 channel.open().verify()
-                val inputStream = channel.invertedOut
-                val result = inputStream.bufferedReader(Charset.forName(info.sshCharset)).use { it.readText() }
-                return@withContext Result.success(result)
+                val result = channel.invertedOut.bufferedReader(Charset.forName(info.sshCharset)).use { it.readText() }
+                val exitStatus = channel.exitStatus!!
+                val error = channel.invertedErr.bufferedReader(Charset.forName(info.sshCharset)).use { it.readText() }
+                return@withContext Result.success(SshResult(exitStatus, result, error))
             } catch (t: Throwable) {
                 log.warn("创建ssh通道失败: ", t)
                 return@withContext Result.fail("创建ssh通道失败: ${t.message}")
