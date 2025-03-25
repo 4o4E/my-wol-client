@@ -79,6 +79,8 @@ import top.e404.mywol.vm.UiVm
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlin.math.min
+import kotlin.time.Duration.Companion.hours
 
 @Composable
 fun MachineItem(machine: MachineWrapper) {
@@ -165,7 +167,16 @@ fun MachineItem(machine: MachineWrapper) {
                 .padding(start = 15.dp, top = 5.dp, end = 15.dp, bottom = 5.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                StateIcon(machine.state)
+                var state by remember { mutableStateOf(machine.state) }
+
+                LaunchedEffect(Unit) {
+                    while (true) {
+                        delay(3000)
+                        state = machine.state
+                    }
+                }
+
+                StateIcon(state)
                 Spacer(Modifier.width(10.dp))
                 Text(machine.name, fontSize = 24.sp)
                 Spacer(Modifier.weight(1F))
@@ -290,7 +301,8 @@ fun MachineItem(machine: MachineWrapper) {
                         .toEpochSecond() * 1000
                 )
                 scheduled = formatted
-                delay(delay)
+                // 防止时间太长导致不一致
+                delay(min(delay, 1.hours.inWholeMilliseconds))
             }
         }
     }

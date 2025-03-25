@@ -18,6 +18,8 @@ import top.e404.mywol.util.logger
 import java.time.Duration
 import java.time.LocalDateTime
 import java.time.ZonedDateTime
+import kotlin.math.max
+import kotlin.time.Duration.Companion.hours
 
 object ScheduleVm : KoinComponent {
     private val log = logger()
@@ -54,7 +56,7 @@ object ScheduleVm : KoinComponent {
                     }
                     val now = LocalDateTime.now()
                     val delayMillis = Duration.between(now, time).toMillis()
-                    delay(delayMillis)
+                    delay(max(delayMillis, 1.hours.inWholeMilliseconds))
                     launch { machine.sendMagicPacket() }
                 }
             }
